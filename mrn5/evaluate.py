@@ -117,6 +117,12 @@ def evaluate(args, recons_key):
             target = target[recons_key].value
             recons = recons['reconstruction'].value
             recons = np.transpose(recons,[1,2,0])
+
+
+            if len(target.shape) == 2: 
+                target = np.expand_dims(target,2) # added for knee dataset 
+
+
             #print (target.shape,recons.shape)
             metrics.push(target, recons)
             

@@ -13,7 +13,7 @@ import torchvision
 from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import SliceData
+from dataset import SliceData,KneeData
 from models import DnCn
 import torchvision
 from torch import nn
@@ -25,18 +25,26 @@ logger = logging.getLogger(__name__)
 
 def create_datasets(args):
 
-    
-    #train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-    #dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-
     train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type)
     dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type)
 
     return dev_data, train_data
 
+def create_datasets_knee(args):
+
+    train_data = KneeData(args.train_path,args.acceleration_factor,args.dataset_type)
+    dev_data = KneeData(args.validation_path,args.acceleration_factor,args.dataset_type)
+
+    return dev_data, train_data
+
+
 
 def create_data_loaders(args):
-    dev_data, train_data = create_datasets(args)
+
+    if args.dataset_type == 'knee':
+        dev_data, train_data = create_datasets_knee(args)
+    else:
+        dev_data, train_data = create_datasets(args)   
 
     display_data = [dev_data[i] for i in range(0, len(dev_data), len(dev_data) // 16)]
 

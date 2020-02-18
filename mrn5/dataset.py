@@ -122,3 +122,75 @@ class SliceDataDev(Dataset):
             #print (input.shape,target.shape)
             return torch.from_numpy(input_img), input_kspace, torch.from_numpy(target),str(fname.name),slice
             #return torch.from_numpy(zf_img), torch.from_numpy(target),str(fname.name),slice
+
+
+
+class KneeData(Dataset):
+
+    def __init__(self, root, acc_factor,dataset_type): 
+
+        files = list(pathlib.Path(root).iterdir())
+        self.examples = []
+        self.acc_factor = acc_factor 
+        self.dataset_type = dataset_type
+        self.key_img = 'img_volus_{}'.format(self.acc_factor)
+        self.key_kspace = 'kspace_volus_{}'.format(self.acc_factor)
+
+        for fname in sorted(files):
+            self.examples.append(fname)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, i):
+        
+        fname = self.examples[i] 
+        #print (fname)
+        #print (self.key_img,self.key_kspace)
+
+        with h5py.File(fname, 'r') as data:
+
+            
+            input_img  = data[self.key_img].value
+            input_kspace  = data[self.key_kspace].value
+            input_kspace = npComplexToTorch(input_kspace)
+            target = data['volfs'].value
+
+            return torch.from_numpy(input_img), input_kspace, torch.from_numpy(target)
+
+
+
+
+class KneeDataDev(Dataset):
+
+    def __init__(self, root,acc_factor,dataset_type):
+
+        files = list(pathlib.Path(root).iterdir())
+        self.examples = []
+        self.acc_factor = acc_factor
+        self.dataset_type = dataset_type
+
+        self.key_img = 'img_volus_{}'.format(self.acc_factor)
+        self.key_kspace = 'kspace_volus_{}'.format(self.acc_factor)
+
+        for fname in sorted(files):
+            self.examples.append(fname) 
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, i):
+        
+        fname = self.examples[i]
+    
+        with h5py.File(fname, 'r') as data:
+
+            input_img  = data[self.key_img].value
+            input_kspace  = data[self.key_kspace].value
+            input_kspace = npComplexToTorch(input_kspace)
+            target = data['volfs'].value
+        
+        return torch.from_numpy(input_img), input_kspace, torch.from_numpy(target),str(fname.name)
+
+
+
