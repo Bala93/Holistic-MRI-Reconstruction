@@ -142,7 +142,7 @@ class DataConsistencyLayer(nn.Module):
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
+    def __init__(self,args,n_channels=2, nc=3, nd=5,**kwargs):
 
         super(DnCn, self).__init__()
 

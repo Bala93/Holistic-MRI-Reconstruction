@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from dataset import SliceDataDev
+from dataset import SliceDataDev,KneeDataDev
 from models import DnCn
 import h5py
 from tqdm import tqdm
@@ -28,14 +28,20 @@ def save_reconstructions(reconstructions, out_dir):
 
 def create_data_loaders(args):
 
-    #data = SliceDataDev(args.data_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-    data = SliceDataDev(args.data_path,args.acceleration_factor,args.dataset_type)
-    data_loader = DataLoader(
-        dataset=data,
-        batch_size=args.batch_size,
-        num_workers=1,
-        pin_memory=True,
-    )
+    if args.dataset_type == 'knee':
+        data = KneeDataDev(args.data_path,args.acceleration_factor,args.dataset_type)
+        data_loader = DataLoader(
+            dataset=data,
+            batch_size=args.batch_size,
+            num_workers=1,
+            pin_memory=True,)
+    else:
+        data = SliceDataDev(args.data_path,args.acceleration_factor,args.dataset_type)
+        data_loader = DataLoader(
+            dataset=data,
+            batch_size=args.batch_size,
+            num_workers=1,
+            pin_memory=True,)
 
     return data_loader
 
@@ -58,7 +64,12 @@ def run_unet(args, model, data_loader):
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
 
-            input, input_kspace, target,fnames,slices = data
+
+            if args.dataset_type == 'knee' :
+                input, input_kspace, target,fnames = data
+            else:
+                input, input_kspace, target,fnames,slices = data
+
             input = input.unsqueeze(1).to(args.device)
             input_kspace = input_kspace.unsqueeze(1).to(args.device)
 
@@ -69,15 +80,31 @@ def run_unet(args, model, data_loader):
             #if args.dataset_type == 'cardiac':
             #    recons = recons[:,5:155,5:155]
 
-            
-            for i in range(recons.shape[0]):
-                recons[i] = recons[i] 
-                reconstructions[fnames[i]].append((slices[i].numpy(), recons[i].numpy()))
+            if args.dataset_type == 'knee':
+                for i in range(recons.shape[0]):
+                    recons[i] = recons[i] 
+                    reconstructions[fnames[i]].append(recons[i].numpy())
 
-    reconstructions = {
-        fname: np.stack([pred for _, pred in sorted(slice_preds)])
-        for fname, slice_preds in reconstructions.items()
-    }
+            else :
+                for i in range(recons.shape[0]):
+                    recons[i] = recons[i] 
+                    reconstructions[fnames[i]].append((slices[i].numpy(), recons[i].numpy()))
+
+
+    if args.dataset_type == 'knee':
+
+        reconstructions = {
+            fname: np.stack([pred for pred in sorted(slice_preds)])
+            for fname, slice_preds in reconstructions.items()
+        }
+
+    else:
+         reconstructions = {
+             fname: np.stack([pred for _, pred in sorted(slice_preds)])
+             for fname, slice_preds in reconstructions.items()
+         }
+
+
     return reconstructions
 
 
