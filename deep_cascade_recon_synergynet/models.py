@@ -1269,8 +1269,10 @@ class ReconSynergyNetAblative(nn.Module):
         #args = da_checkpoint['args']
         if args.dataset_type=='cardiac':
             patch_size = 150
-        if args.dataset_type=='mrbrain_t1':
+        elif args.dataset_type=='mrbrain_t1':
             patch_size = 240
+        elif args.dataset_type=='knee':
+            patch_size = 320  
         else:
             patch_size = 256
         model_params = {
@@ -1429,7 +1431,7 @@ class ReconSynergyNet(nn.Module):
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=5, nd=5, **kwargs):
+    def __init__(self,args,n_channels=2, nc=3, nd=5, **kwargs):
 
         super(DnCn, self).__init__()
 
