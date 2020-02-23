@@ -96,43 +96,21 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer):
 
     for iter, data in enumerate(tqdm(data_loader)):
 
-        #print (data)
-
-        #print ("Received data from loader")
         input, input_kspace, target = data
         
-        #print("input size: ", input.size())
-        #print("input_kspace size: ", input_kspace.size())
         
         input = input.unsqueeze(1).to(args.device)
-        #input_kspace = input_kspace.permute(0,3,1,2)
-        #input_kspace = input_kspace.unsqueeze(1).to(args.device)
         target = target.unsqueeze(1).to(args.device)
         
-        #input = input.to(args.device)
         input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
-        #input_kspace = input_kspace.to(args.device)
-        #target = target.to(args.device)
 
         input = input.float()
         input_kspace = input_kspace.float()
         target = target.float()
-        #print ("Initialized input and target")
-
-        #print("input size passed to DnCn: ", input.size())
-        #print("input_kspace size passed to DnCn: ", input_kspace.size())
         output = model(input,input_kspace)
-        #print("Output size from DnCn: ", output.size())
-        #print("target size from DnCn: ", target.size())
 
-        #print ("Input passed to model")
         loss = F.l1_loss(output,target)
-#        ssim_loss = 1-pytorch_ssim.ssim(output,target)
-#        loss = l1_loss #+ (0.1*ssim_loss)
-        #loss = torch.mean(((1 - target)**2) * l1_loss)
-        #print("L1 loss: ",l1_loss)
-        #print("SSIM loss: ",ssim_loss)
-        #print ("Loss calculated")
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -149,7 +127,7 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer):
                 f'Time = {time.perf_counter() - start_iter:.4f}s',
             )
         start_iter = time.perf_counter()
-        #break
+        break
 
     return avg_loss, time.perf_counter() - start_epoch
 
@@ -166,7 +144,6 @@ def evaluate(args, epoch, model, data_loader, writer):
             input, input_kspace,target = data
 
             input = input.unsqueeze(1).to(args.device)
-            #input_kspace = input_kspace.unsqueeze(1).to(args.device)
             input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
             target = target.unsqueeze(1).to(args.device)
     
@@ -175,11 +152,10 @@ def evaluate(args, epoch, model, data_loader, writer):
             target = target.float()
     
             output = model(input,input_kspace)
-            #loss = F.mse_loss(output,target, size_average=False)
             loss = F.mse_loss(output,target)
             
             losses.append(loss.item())
-            #break
+            break
             
         writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
        
@@ -200,11 +176,9 @@ def visualize(args, epoch, model, data_loader, writer):
             input,input_kspace,target = data
 
             input = input.unsqueeze(1).to(args.device)
-            #input_kspace = input_kspace.unsqueeze(1).to(args.device)
             input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
             target = target.unsqueeze(1).to(args.device)
 
-            #output = model(input.float(),input_kspace)
             output = model(input.float(),input_kspace.float())
 
             print("input: ", torch.min(input), torch.max(input))
@@ -235,14 +209,6 @@ def save_model(args, exp_dir, epoch, model, optimizer,best_dev_loss,is_new_best)
 
 
 def build_model(args):
-    
-    # model = UnetModel(
-    #     in_chans=1,
-    #     out_chans=1,
-    #     chans=args.num_chans,
-    #     num_pool_layers=args.num_pools,
-    #     drop_prob=args.drop_prob
-    # ).to(args.device)
     
     model = DnCn(args,n_channels=1).to(args.device)
 
@@ -275,12 +241,10 @@ def build_optim(args, params):
 
 def main(args):
     args.exp_dir.mkdir(parents=True, exist_ok=True)
-    #writer = SummaryWriter(logdir=str(args.exp_dir / 'summary'))
     writer = SummaryWriter(log_dir=str(args.exp_dir / 'summary'))
 
     if args.resume:
         print('resuming model, batch_size', args.batch_size)
-        #checkpoint, model, optimizer, disc, optimizerD = load_model(args, args.checkpoint)
         checkpoint, model, optimizer, disc, optimizerD = load_model(args.checkpoint)
         args = checkpoint['args']
         args.batch_size = 28
@@ -290,7 +254,6 @@ def main(args):
         del checkpoint
     else:
         model = build_model(args)
-        #print ("Model Built")
         if args.data_parallel:
             model = torch.nn.DataParallel(model)    
         optimizer = build_optim(args, model.parameters())
@@ -302,7 +265,6 @@ def main(args):
     logging.info(model)
 
     train_loader, dev_loader, display_loader = create_data_loaders(args)
-    #print ("Dataloader initialized")
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_step_size, args.lr_gamma)
     
     for epoch in range(start_epoch, args.num_epochs):
@@ -355,9 +317,9 @@ def create_arg_parser():
 
     parser.add_argument('--acceleration_factor',type=str,help='acceleration factors')
     parser.add_argument('--dataset_type',type=str,help='cardiac,kirby')
-    #parser.add_argument('--unet_model_path',type=str,help='unet best model path')
-    #parser.add_argument('--dautomap_model_path',type=str,help='dautomap best model path')
-    #parser.add_argument('--srcnnlike_model_path',type=str,help='dautomap-unet srcnnlike best model path')
+    parser.add_argument('--unet_model_path',type=str,help='unet best model path')
+    parser.add_argument('--dautomap_model_path',type=str,help='dautomap best model path')
+    parser.add_argument('--srcnnlike_model_path',type=str,help='dautomap-unet srcnnlike best model path')
     parser.add_argument('--usmask_path',type=str,help='us mask path')
     
     return parser
