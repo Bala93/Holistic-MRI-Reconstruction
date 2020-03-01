@@ -84,6 +84,7 @@ def train_epoch(args, epoch, unetmodel, dncnmodel, model,data_loader, optimizer,
         #print (input.shape,target.shape)
 
         input = input.unsqueeze(1).to(args.device)
+
         input_kspace = input_kspace.unsqueeze(1).to(args.device)
         #target = target.unsqueeze(1).to(args.device)
         target = target.unsqueeze(1).to(args.device)
@@ -93,10 +94,18 @@ def train_epoch(args, epoch, unetmodel, dncnmodel, model,data_loader, optimizer,
         #print ("Initialized input and target")
         #print("input shape: ", input.shape, "input_kspace shape",input_kspace.shape, "target shape:", target.shape)
         rec = dncnmodel(input,input_kspace)
+
+        if args.dataset_type == 'cardiac':
+            rec = F.pad(rec,(5,5,5,5),"constant",0)
+
         feat,seg = unetmodel(rec)
+        if args.dataset_type == 'cardiac':
+            feat = feat[:,:,5:155,5:155]
+
         output = model(input,input_kspace, feat)
         #print("output shape: ", output.shape, "target shape:", target.shape)
 
+   
         #print ("Input passed to model")
         loss = F.l1_loss(output,target) #this loss is currently used
         
@@ -142,7 +151,15 @@ def evaluate(args, epoch, unetmodel, dncnmodel, model, data_loader, writer):
             target = target.float()
     
             rec = dncnmodel(input,input_kspace)
+
+            if args.dataset_type == 'cardiac':
+                rec = F.pad(rec,(5,5,5,5),"constant",0)
+
             feat,seg = unetmodel(rec)
+
+            if args.dataset_type == 'cardiac':
+                feat = feat[:,:,5:155,5:155]
+
             output = model(input, input_kspace, feat)
             #loss = F.mse_loss(output,target, size_average=False)
             loss = F.mse_loss(output,target)
@@ -173,7 +190,17 @@ def visualize(args, epoch, unetmodel, dncnmodel, model, data_loader, writer):
             target = target.unsqueeze(1).to(args.device)
 
             rec = dncnmodel(input.float(),input_kspace)
+
+
+            if args.dataset_type == 'cardiac':
+                rec = F.pad(rec,(5,5,5,5),"constant",0)
+
             feat,seg = unetmodel(rec)
+
+
+            if args.dataset_type == 'cardiac':
+                feat = feat[:,:,5:155,5:155]
+
             output = model(input.float(), input_kspace, feat)
 
             print("input: ", torch.min(input), torch.max(input))

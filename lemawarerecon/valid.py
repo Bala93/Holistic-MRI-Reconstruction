@@ -4,6 +4,7 @@ from collections import defaultdict
 import argparse
 import numpy as np
 import torch
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from dataset import SliceDataDev
 from models import DnCn,UnetModel,DnCnFeature
@@ -56,10 +57,9 @@ def load_segmodel(args):
     return model
 
 def load_recmodel(args):
-    
 
     checkpoint = torch.load(args.dncn_model_path)
-    args = checkpoint['args']
+    args.usmask_path = checkpoint['args'].usmask_path # to add mask path to args 
     model = DnCn(args,n_channels=1).to(args.device)
     model.load_state_dict(checkpoint['model'])
     for params in model.parameters():
@@ -94,7 +94,15 @@ def run_unet(args, segmodel, recmodel, model, data_loader):
             input = input.float()
 
             rec = recmodel(input,input_kspace)
+
+            if args.dataset_type == 'cardiac':
+                rec = F.pad(rec,(5,5,5,5),"constant",0)
+
             feat,seg = segmodel(rec)
+
+            if args.dataset_type == 'cardiac':
+                feat = feat[:,:,5:155,5:155]
+
             recons = model(input, input_kspace,feat).to('cpu').squeeze(1)
 
             #if args.dataset_type == 'cardiac':

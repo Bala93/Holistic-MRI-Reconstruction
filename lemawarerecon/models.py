@@ -263,6 +263,7 @@ class DnCn(nn.Module):
         self.nc = nc
         self.nd = nd
 
+
         us_mask_path = os.path.join(args.usmask_path,'mask_{}.npy'.format(args.acceleration_factor))
         us_mask = torch.from_numpy(np.load(us_mask_path)).unsqueeze(2).unsqueeze(0).to(args.device)
 
