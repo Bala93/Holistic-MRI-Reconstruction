@@ -109,11 +109,11 @@ def train_epoch(args, epoch, unetmodel, dncnmodel, model,data_loader, optimizer,
 
         output = model(input,input_kspace, feat)
         #print("output shape: ", output.shape, "target shape:", target.shape)
-        import pdb; pdb.set_trace()
    
         #print ("Input passed to model")
         loss = F.l1_loss(output,target) #this loss is currently used
         
+        #import pdb; pdb.set_trace()
         #print ("Loss calculated")
 
         optimizer.zero_grad()
@@ -132,7 +132,7 @@ def train_epoch(args, epoch, unetmodel, dncnmodel, model,data_loader, optimizer,
                 f'Time = {time.perf_counter() - start_iter:.4f}s',
             )
         start_iter = time.perf_counter()
-        break
+        #break
 
     return avg_loss, time.perf_counter() - start_epoch
 
@@ -158,7 +158,7 @@ def evaluate(args, epoch, unetmodel, dncnmodel, model, data_loader, writer):
             input_kspace = input_kspace.float()
             target = target.float()
     
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
 
             rec = dncnmodel(input,input_kspace)
 
@@ -175,7 +175,7 @@ def evaluate(args, epoch, unetmodel, dncnmodel, model, data_loader, writer):
             loss = F.mse_loss(output,target)
             
             losses.append(loss.item())
-            break
+            #break
             
         writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
        

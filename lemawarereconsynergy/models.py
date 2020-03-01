@@ -854,7 +854,7 @@ class DnCnFeature(nn.Module):
 
         for i in range(self.nc):
 
-            x_cnn = self.conv_blocks[i](x,k,thinfeat)
+            x= self.conv_blocks[i](x,k,thinfeat)
             #xcrop = x 
 
             #if self.dataset_type=='cardiac':
