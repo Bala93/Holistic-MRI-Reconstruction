@@ -253,7 +253,7 @@ def build_segmodel(args):
          drop_prob=args.drop_prob
      ).to(args.device)
     
-    checkpoint = torch.load(args.unet_model_path)
+    checkpoint = torch.load(args.seg_unet_path)
     model.load_state_dict(checkpoint['model'])
     for params in model.parameters():
         params.requires_grad=False 
@@ -382,8 +382,12 @@ def create_arg_parser():
     parser.add_argument('--acceleration_factor',type=str,help='acceleration factors')
     parser.add_argument('--dataset_type',type=str,help='cardiac,kirby')
     parser.add_argument('--usmask_path',type=str,help='us mask path')
+    parser.add_argument('--dautomap_model_path',type=str,help='dautomap best model path')
     parser.add_argument('--unet_model_path',type=str,help='unet model path')
+    parser.add_argument('--srcnnlike_model_path',type=str,help='dautomap-unet srcnnlike best model path')
     parser.add_argument('--dncn_model_path',type=str,help='dncn model path')
+    parser.add_argument('--seg_unet_path',type=str,help='unet model path')
+   
     
     return parser
 

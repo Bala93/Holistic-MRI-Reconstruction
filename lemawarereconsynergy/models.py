@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import variable, grad
 import numpy as np
 import os 
-from unetmodel import UnetModel
+#from unetmodel import UnetModel
 
 ########################### UNet for gradient estimation ################################
 
@@ -644,7 +644,7 @@ class ReconSynergyNetAblative(nn.Module):
         self.dataset_type = args.dataset_type
 
         dautomap_model = dAUTOMAP(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
-        unet_model = FastMRIUnetModel(1,1,args.num_chans, args.num_pools, args.drop_prob)
+        unet_model = FastMRIUnetModel(1,1,32,4,0)
         srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1)
 
         # load pretrained weights which are obtained from separately trainining the individual blocks to get the best possible result
@@ -727,13 +727,13 @@ class ReconSynergyNetAblativeFeature(nn.Module):
 
         # load pretrained weights which are obtained from separately trainining the individual blocks to get the best possible result
 
-        #unet_checkpoint     = torch.load(args.unet_model_path)
-        #dautomap_checkpoint = torch.load(args.dautomap_model_path)
-        #srcnnlike_checkpoint= torch.load(args.srcnnlike_model_path)
+        unet_checkpoint     = torch.load(args.unet_model_path)
+        dautomap_checkpoint = torch.load(args.dautomap_model_path)
+        srcnnlike_checkpoint= torch.load(args.srcnnlike_model_path)
 
-        #unet_model.load_state_dict(unet_checkpoint['model'])
-        #dautomap_model.load_state_dict(dautomap_checkpoint['model'])
-        #srcnnlike_model.load_state_dict(srcnnlike_checkpoint['model'])
+        unet_model.load_state_dict(unet_checkpoint['model'])
+        dautomap_model.load_state_dict(dautomap_checkpoint['model'])
+        srcnnlike_model.load_state_dict(srcnnlike_checkpoint['model_re'])
 
 
         self.KI_layer = dautomap_model        
@@ -837,6 +837,8 @@ class DnCnFeature(nn.Module):
         dcs = []
 
         self.conv1x1=nn.Conv2d(1472,32,kernel_size=1)
+        conv1x1_checkpoint = torch.load(args.srcnnlike_model_path)
+        self.conv1x1.load_state_dict(conv1x1_checkpoint['model_conv1x1']) 
 
         for i in range(nc):
             conv_feature_block= ReconSynergyNetAblativeFeature(args)

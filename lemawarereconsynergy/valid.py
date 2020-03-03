@@ -89,9 +89,11 @@ def run_unet(args, segmodel, recmodel, model, data_loader):
 
             input, input_kspace, target,fnames,slices = data
             input = input.unsqueeze(1).to(args.device)
-            input_kspace = input_kspace.unsqueeze(1).to(args.device)
+            input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
+            #input_kspace = input_kspace.unsqueeze(1).to(args.device)
 
             input = input.float()
+            input_kspace = input_kspace.float()
 
             rec = recmodel(input,input_kspace)
 
