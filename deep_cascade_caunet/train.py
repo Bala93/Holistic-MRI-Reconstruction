@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from dataset import SliceData
-from models import DnCn, Vgg16
+from models import DnCn
 import torchvision
 from torch import nn
 from torch.autograd import Variable
@@ -24,10 +24,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def create_datasets(args):
-
-    
-    #train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-    #dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
 
     train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type)
     dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type)
@@ -62,20 +58,15 @@ def create_data_loaders(args):
     return train_loader, dev_loader, display_loader
 
 
-def train_epoch(args, epoch, model,data_loader, optimizer, writer, vgg):
+def train_epoch(args, epoch, model,data_loader, optimizer, writer):
     
     model.train()
     avg_loss = 0.
     start_epoch = start_iter = time.perf_counter()
     global_step = epoch * len(data_loader)
-    #print ("Entering Train epoch")
-    vgg_scale = 1
 
     for iter, data in enumerate(tqdm(data_loader)):
 
-        #print (data)
-
-        #print ("Received data from loader")
         input, input_kspace, target = data
 
         input = input.unsqueeze(1).to(args.device)
@@ -84,17 +75,11 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer, vgg):
 
         input = input.float()
         target = target.float()
-        #print ("Initialized input and target")
 
         output = model(input,input_kspace)
 
-        #print ("Input passed to model")
         loss = F.l1_loss(output,target)
 
-        features_target = vgg(target)
-        features_output   = vgg(output)
-        loss_vgg       = F.mse_loss(features_output,features_target) 
-        #print ("Loss calculated")
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -135,7 +120,6 @@ def evaluate(args, epoch, model, data_loader, writer):
             target = target.float()
     
             output = model(input,input_kspace)
-            #loss = F.mse_loss(output,target, size_average=False)
             loss = F.mse_loss(output,target)
             
             losses.append(loss.item())
@@ -194,14 +178,6 @@ def save_model(args, exp_dir, epoch, model, optimizer,best_dev_loss,is_new_best)
 
 def build_model(args):
     
-    # model = UnetModel(
-    #     in_chans=1,
-    #     out_chans=1,
-    #     chans=args.num_chans,
-    #     num_pool_layers=args.num_pools,
-    #     drop_prob=args.drop_prob
-    # ).to(args.device)
-    
     model = DnCn(args,n_channels=1).to(args.device)
 
     return model
@@ -229,13 +205,10 @@ def build_optim(args, params):
 
 def main(args):
     args.exp_dir.mkdir(parents=True, exist_ok=True)
-    #writer = SummaryWriter(logdir=str(args.exp_dir / 'summary'))
     writer = SummaryWriter(log_dir=str(args.exp_dir / 'summary'))
-    vgg = Vgg16(requires_grad=False).to(args.device)
 
     if args.resume:
         print('resuming model, batch_size', args.batch_size)
-        #checkpoint, model, optimizer, disc, optimizerD = load_model(args, args.checkpoint)
         checkpoint, model, optimizer, disc, optimizerD = load_model(args.checkpoint)
         args = checkpoint['args']
         args.batch_size = 28
@@ -245,11 +218,9 @@ def main(args):
         del checkpoint
     else:
         model = build_model(args)
-        #print ("Model Built")
         if args.data_parallel:
             model = torch.nn.DataParallel(model)    
         optimizer = build_optim(args, model.parameters())
-        #print ("Optmizer initialized")
         best_dev_loss = 1e9
         start_epoch = 0
 
@@ -257,13 +228,12 @@ def main(args):
     logging.info(model)
 
     train_loader, dev_loader, display_loader = create_data_loaders(args)
-    #print ("Dataloader initialized")
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_step_size, args.lr_gamma)
     
     for epoch in range(start_epoch, args.num_epochs):
 
         scheduler.step(epoch)
-        train_loss,train_time = train_epoch(args, epoch, model, train_loader,optimizer,writer,vgg)
+        train_loss,train_time = train_epoch(args, epoch, model, train_loader,optimizer,writer)
         dev_loss,dev_time = evaluate(args, epoch, model, dev_loader, writer)
         visualize(args, epoch, model, display_loader, writer)
 
