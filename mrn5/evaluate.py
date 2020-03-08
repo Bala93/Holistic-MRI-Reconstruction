@@ -8,6 +8,7 @@ from runstats import Statistics
 from skimage.measure import compare_psnr, compare_ssim
 from skimage.filters import laplace
 from tqdm import tqdm
+from mail_sys import send_mail
 
 # adding hfn metric 
 def hfn(gt,pred):
@@ -111,7 +112,7 @@ def evaluate(args, recons_key):
     metrics = Metrics(METRIC_FUNCS)
 
     for tgt_file in args.target_path.iterdir():
-        #print (tgt_file)
+        print (tgt_file)
         with h5py.File(tgt_file) as target, h5py.File(
           args.predictions_path / tgt_file.name) as recons:
             target = target[recons_key].value
@@ -146,5 +147,7 @@ if __name__ == '__main__':
 
     with open(args.report_path / 'report.txt','w') as f:
         f.write(metrics_report)
+
+    send_mail(args.report_path,metrics_report)
 
     #print(metrics)
