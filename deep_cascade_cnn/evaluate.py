@@ -8,6 +8,8 @@ from runstats import Statistics
 from skimage.measure import compare_psnr, compare_ssim
 from skimage.filters import laplace
 from tqdm import tqdm
+from mail_sys import send_mail
+
 
 # adding hfn metric 
 def hfn(gt,pred):
@@ -145,5 +147,7 @@ if __name__ == '__main__':
 
     with open(args.report_path / 'report.txt','w') as f:
         f.write(metrics_report)
+
+    send_mail(args.report_path,metrics_report)
 
     #print(metrics)
