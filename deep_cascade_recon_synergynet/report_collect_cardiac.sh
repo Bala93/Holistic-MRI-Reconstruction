@@ -1,5 +1,5 @@
 
-MODEL='ablative-dA-fastMRIUNet-wang_etal-three-channels'
+MODEL='deep-cascade-rsn'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
 DATASET_TYPE='cardiac'
 #MASK_TYPE='gaussian'

@@ -127,7 +127,7 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer):
                 f'Time = {time.perf_counter() - start_iter:.4f}s',
             )
         start_iter = time.perf_counter()
-        break
+        #break
 
     return avg_loss, time.perf_counter() - start_epoch
 
@@ -155,7 +155,7 @@ def evaluate(args, epoch, model, data_loader, writer):
             loss = F.mse_loss(output,target)
             
             losses.append(loss.item())
-            break
+            #break
             
         writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
        

@@ -1,7 +1,7 @@
 
 MODEL='ablative-dA-fastMRIUNet-wang_etal-three-channels'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
-DATASET_TYPE='knee_mrnet'
+DATASET_TYPE='kirby90'
 #MASK_TYPE='gaussian'
 MASK_TYPE='cartesian'
 
