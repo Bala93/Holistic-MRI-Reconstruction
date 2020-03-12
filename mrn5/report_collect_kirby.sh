@@ -1,6 +1,7 @@
-MODEL='mrn3-real'
+
+MODEL='mrn5-real'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
-DATASET_TYPE='cardiac'
+DATASET_TYPE='kirby90'
 #MASK_TYPE='gaussian'
 MASK_TYPE='cartesian'
 
@@ -31,5 +32,3 @@ echo ${ACC_FACTOR}
 cat ${REPORT_PATH}
 echo "\n"
 #ACC_FACTOR_8x
-
-
