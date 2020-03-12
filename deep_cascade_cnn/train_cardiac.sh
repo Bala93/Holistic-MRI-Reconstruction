@@ -1,10 +1,10 @@
-MODEL='deep-cascade-cnn'
+MODEL='deep-cascade3-cnn'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
 DATASET_TYPE='cardiac'
-MASK_TYPE='gaussian'
-#MASK_TYPE='cartesian'
+#MASK_TYPE='gaussian'
+MASK_TYPE='cartesian'
 
-<<ACC_FACTOR_4x
+#<<ACC_FACTOR_4x
 BATCH_SIZE=4
 NUM_EPOCHS=150
 DEVICE='cuda:0'
@@ -15,7 +15,7 @@ VALIDATION_PATH=${BASE_PATH}'/datasets/'${DATASET_TYPE}'/'${MASK_TYPE}'/validati
 USMASK_PATH=${BASE_PATH}'/Reconstruction-for-MRI/us_masks/'${DATASET_TYPE}'/'${MASK_TYPE}
 echo python train.py --batch-size ${BATCH_SIZE} --num-epochs ${NUM_EPOCHS} --device ${DEVICE} --exp-dir ${EXP_DIR} --train-path ${TRAIN_PATH} --validation-path ${VALIDATION_PATH} --acceleration_factor ${ACC_FACTOR} --dataset_type ${DATASET_TYPE} --usmask_path ${USMASK_PATH}
 python train.py --batch-size ${BATCH_SIZE} --num-epochs ${NUM_EPOCHS} --device ${DEVICE} --exp-dir ${EXP_DIR} --train-path ${TRAIN_PATH} --validation-path ${VALIDATION_PATH} --acceleration_factor ${ACC_FACTOR} --dataset_type ${DATASET_TYPE} --usmask_path ${USMASK_PATH}
-ACC_FACTOR_4x
+#ACC_FACTOR_4x
 
 <<ACC_FACTOR_5x
 BATCH_SIZE=4

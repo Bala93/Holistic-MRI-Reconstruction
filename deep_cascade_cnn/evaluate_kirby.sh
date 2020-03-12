@@ -1,6 +1,6 @@
 MODEL='deep-cascade-cnn'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
-DATASET_TYPE='knee'
+DATASET_TYPE='kirby90'
 #MASK_TYPE='gaussian'
 MASK_TYPE='cartesian'
 

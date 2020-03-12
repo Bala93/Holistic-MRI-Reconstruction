@@ -103,7 +103,7 @@ def conv_block(n_ch, nd, nf=32, ks=3, dilation=1, bn=False, nl='lrelu', conv_dim
 
 #         if x.dim() == 4:
 #             x_res = x_res.permute(0, 3, 1, 2)
-#         elif x.dim() == 5:
+        #         elif x.dim() == 5:
 #             x_res = x_res.permute(0, 4, 2, 3, 1)
 
 #         return x_res
