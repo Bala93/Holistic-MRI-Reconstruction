@@ -10,6 +10,7 @@ from models import UnetModel, DataConsistencyLayer,dAUTOMAP,conv_block,ConvFeatu
 import h5py
 from tqdm import tqdm
 from torch.nn import functional as F
+from torch import nn
 
 def save_reconstructions(reconstructions, out_dir):
     """
@@ -54,12 +55,14 @@ def load_model(args,checkpoint_file):
     #model = conv_block(n_ch=2,nd=5,n_out=1).to(args.device)
     #model = conv_block(n_ch=3,nd=5,n_out=1).to(args.device)
     #print(model)
-    model = ConvFeatureBlock(3).to(args.device)
+    model_re = ConvFeatureBlock(3).to(args.device)
+    model_conv1x1 = nn.Conv2d(1472,32,kernel_size=1).to(args.device)
 
     #if args.data_parallel:
     #    model = torch.nn.DataParallel(model)
-    model.load_state_dict(checkpoint['model'])
-    return model
+    model_re.load_state_dict(checkpoint['model_re'])
+    model_conv1x1.load_state_dict(checkpoint['model_conv1x1'])
+    return model_re,model_conv1x1
 
 
 def load_dautomap(args,checkpoint_file):
@@ -126,9 +129,11 @@ def load_base_model(args,checkpoint_file):
     return model 
 
 
-def run_unet(args, model, dautomap_model,unet_model,lem_model,dncn_model,dc_layer,data_loader):
+def run_unet(args, model_re,model_conv1x1,dautomap_model,unet_model,lem_model,dncn_model,dc_layer,data_loader):
 
-    model.eval()
+    model_re.eval()
+    model_conv1x1.eval()
+
     reconstructions = defaultdict(list)
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
@@ -155,11 +160,12 @@ def run_unet(args, model, dautomap_model,unet_model,lem_model,dncn_model,dc_laye
             dncn_pred = dncn_model(input_crop,input_kspace2)
             dncn_pred = F.pad(dncn_pred,(5,5,5,5),"constant",0)
             feat,lem  = lem_model(dncn_pred)
+            feat = model_conv1x1(feat)
 
             pred_cat = torch.cat([unet_pred,dautomap_pred,input],dim=1)
 
             #recons = model(pred_cat,feat)
-            recons = model(pred_cat,feat)
+            recons = model_re(pred_cat,feat)
 
             if not dc_layer is None:
                 recons = dc_layer(input_kspace,recons)
@@ -183,8 +189,7 @@ def run_unet(args, model, dautomap_model,unet_model,lem_model,dncn_model,dc_laye
 def main(args):
     
     data_loader = create_data_loaders(args)
-    model = load_model(args,args.checkpoint)
-
+    model_re,model_conv1x1 = load_model(args,args.checkpoint)
     dautomap_model = load_dautomap(args,args.dautomap_model_path)
     unet_model     = load_unet(args,args.unet_model_path)
     lem_model      = load_lem_unet(args,args.seg_unet_path)
@@ -195,7 +200,7 @@ def main(args):
     else:
         dc_layer = None
 
-    reconstructions = run_unet(args, model, dautomap_model, unet_model, lem_model,dncn_model,dc_layer, data_loader)
+    reconstructions = run_unet(args, model_re, model_conv1x1, dautomap_model, unet_model, lem_model,dncn_model,dc_layer, data_loader)
     save_reconstructions(reconstructions, args.out_dir)
 
 
