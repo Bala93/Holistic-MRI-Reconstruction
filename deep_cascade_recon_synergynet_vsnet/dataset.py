@@ -63,7 +63,7 @@ class KneeDataDev(Dataset):
             sensitivity = torch.from_numpy(data['sensitivity'].value)
  
        
-        return  img_gt,img_und,img_und_kspace,rawdata_und,masks,sensitivity,fname
+        return  img_gt,img_und,img_und_kspace,rawdata_und,masks,sensitivity,str(fname.name)
 
 
 

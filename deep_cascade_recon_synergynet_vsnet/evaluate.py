@@ -8,6 +8,10 @@ from runstats import Statistics
 from skimage.measure import compare_psnr, compare_ssim
 from skimage.filters import laplace
 from tqdm import tqdm
+from dataset import KneeDataDev
+from data import transforms as T
+import torch
+from tqdm import tqdm
 
 # adding hfn metric 
 def hfn(gt,pred):
@@ -57,7 +61,7 @@ METRIC_FUNCS = dict(
     NMSE=nmse,
     PSNR=psnr,
     SSIM=ssim,
-    HFN=hfn
+    #HFN=hfn
 )
 
 
@@ -110,20 +114,17 @@ class Metrics:
 def evaluate(args, recons_key):
     metrics = Metrics(METRIC_FUNCS)
 
-    for tgt_file in args.target_path.iterdir():
+    for tgt_file in tqdm(args.target_path.iterdir()):
         #print (tgt_file)
         with h5py.File(tgt_file) as target, h5py.File(
           args.predictions_path / tgt_file.name) as recons:
             target = target[recons_key].value
+            target = T.complex_abs(torch.from_numpy(target)).numpy()
             recons = recons['reconstruction'].value
             recons = np.transpose(recons,[1,2,0])
 
-
             if len(target.shape) == 2: 
                 target = np.expand_dims(target,2) # added for knee dataset 
-
-
-            #print (target.shape,recons.shape)
             metrics.push(target, recons)
             
     return metrics
@@ -140,7 +141,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    recons_key = 'volfs'
+    recons_key = 'img_gt'
     metrics = evaluate(args, recons_key)
     metrics_report = metrics.get_report()
 

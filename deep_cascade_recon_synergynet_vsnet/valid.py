@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from dataset import SliceDataDev,KneeDataDev
+from dataset import KneeDataDev
 from architecture import network
 import h5py
 from tqdm import tqdm
@@ -60,7 +60,7 @@ def run_unet(args, model, data_loader):
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
 
-            img_gt,img_und,img_und_kspace,rawdata_und,masks,sensitivity = data
+            img_gt,img_und,img_und_kspace,rawdata_und,masks,sensitivity,fnames = data
 
             img_gt  = img_gt.to(args.device)
             img_und = img_und.to(args.device)
@@ -70,10 +70,9 @@ def run_unet(args, model, data_loader):
             sensitivity = sensitivity.to(args.device)
             
             output = model(img_und,img_und_kspace,rawdata_und,masks,sensitivity)
-            recons = T.complex_abs(output)
+            recons = T.complex_abs(output).to('cpu')
             
             for i in range(recons.shape[0]):
-                recons[i] = recons[i] 
                 reconstructions[fnames[i]].append(recons[i].numpy())
 
         reconstructions = {
