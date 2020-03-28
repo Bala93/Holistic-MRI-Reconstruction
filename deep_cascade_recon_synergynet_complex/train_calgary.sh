@@ -1,11 +1,11 @@
-MODEL='deep-cascade-cnn'
+MODEL='deep-cascade-rsn'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
 DATASET_TYPE='calgary'
 
 #<<ACC_FACTOR_4x
 BATCH_SIZE=4
 NUM_EPOCHS=150
-DEVICE='cuda:0'
+DEVICE='cuda:1'
 ACC_FACTOR='4x'
 EXP_DIR=${BASE_PATH}'/experiments/'${DATASET_TYPE}'/acc_'${ACC_FACTOR}'/'${MODEL}
 TRAIN_PATH=${BASE_PATH}'/datasets/'${DATASET_TYPE}'/train/acc_'${ACC_FACTOR}

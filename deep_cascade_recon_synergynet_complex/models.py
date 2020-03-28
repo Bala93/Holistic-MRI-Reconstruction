@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable, grad
 import numpy as np
 import os 
+from torch.nn import functional as F
 
 class DataConsistencyLayer(nn.Module):
 
@@ -431,7 +432,7 @@ class ReconSynergyNetAblative(nn.Module):
             patch_size = 256
         model_params = {
           'input_shape': (2, patch_size, patch_size),
-          'output_shape': (1, patch_size, patch_size),
+          'output_shape': (2, patch_size, patch_size),
           'tfx_params': {
             'nrow': patch_size,
             'ncol': patch_size,
@@ -450,8 +451,8 @@ class ReconSynergyNetAblative(nn.Module):
         self.dataset_type = args.dataset_type
 
         dautomap_model = dAUTOMAP(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
-        unet_model = UnetModel(1,1,args.num_chans, args.num_pools, args.drop_prob)
-        srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1)
+        unet_model = UnetModel(2,2,args.num_chans, args.num_pools, args.drop_prob)
+        srcnnlike_model = conv_block(n_ch=6,nd=5,n_out=2)
 
         # load pretrained weights which are obtained from separately trainining the individual blocks to get the best possible result
 
@@ -475,6 +476,7 @@ class ReconSynergyNetAblative(nn.Module):
             dautomap_pred = F.pad(dautomap_pred,(5,5,5,5),"constant",0)
         unet_pred     = self.II_layer(x)
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
+        #print (unet_pred.shape,dautomap_pred.shape,x.shape)
         pred_cat = torch.cat([unet_pred,dautomap_pred,x],dim=1)
         recons = self.Re_layer(pred_cat)
         
@@ -483,7 +485,7 @@ class ReconSynergyNetAblative(nn.Module):
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
+    def __init__(self,args,n_channels=2, nc=3, nd=5,**kwargs):
 
         super(DnCn, self).__init__()
 
@@ -501,7 +503,7 @@ class DnCn(nn.Module):
 
 
         for i in range(nc):
-            conv_blocks.append(conv_layer(n_channels, nd, **kwargs))
+            conv_blocks.append(ReconSynergyNetAblative(args))
             dcs.append(DataConsistencyLayer(us_mask))
 
         self.conv_blocks = nn.ModuleList(conv_blocks)
