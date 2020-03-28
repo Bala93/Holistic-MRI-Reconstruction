@@ -118,31 +118,27 @@ class DataConsistencyLayer(nn.Module):
 
     def forward(self,predicted_img,us_kspace):
 
-        # us_kspace     = us_kspace[:,0,:,:]
-        predicted_img = predicted_img[:,0,:,:]
-        
-        kspace_predicted_img = torch.rfft(predicted_img,2,True,False).double()
+        predicted_img = predicted_img.permute(0,2,3,1)
+        kspace_predicted_img = torch.fft(predicted_img,2,True)
+        us_kspace = us_kspace.permute(0,2,3,1)
         #print (us_kspace.shape,predicted_img.shape,kspace_predicted_img.shape,self.us_mask.shape)
+        #print (us_kspace.dtype,predicted_img.dtype,kspace_predicted_img.dtype,self.us_mask.dtype)
         
         updated_kspace1  = self.us_mask * us_kspace 
         updated_kspace2  = (1 - self.us_mask) * kspace_predicted_img
 
-        updated_kspace   = updated_kspace1[:,0,:,:,:] + updated_kspace2
-        
+        updated_kspace   = updated_kspace1 + updated_kspace2
         
         updated_img    = torch.ifft(updated_kspace,2,True) 
+
+        updated_img = updated_img.permute(0,3,1,2)
         
-        #update_img_abs = torch.sqrt(updated_img[:,:,:,0]**2 + updated_img[:,:,:,1]**2)
-        update_img_abs = updated_img[:,:,:,0] # taking real part only, change done on Sep 18 '19 bcos taking abs till bring in the distortion due to imag part also. this was verified was done by simple experiment on FFT, mask and IFFT
-        
-        update_img_abs = update_img_abs.unsqueeze(1)
-        
-        return update_img_abs.float()
+        return updated_img 
 
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=3, nd=5,**kwargs):
+    def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
 
         super(DnCn, self).__init__()
 
@@ -150,7 +146,7 @@ class DnCn(nn.Module):
         self.nd = nd
 
         us_mask_path = os.path.join(args.usmask_path,'mask_{}.npy'.format(args.acceleration_factor))
-        us_mask = torch.from_numpy(np.load(us_mask_path)).unsqueeze(2).unsqueeze(0).to(args.device)
+        us_mask = torch.from_numpy(np.load(us_mask_path)).unsqueeze(2).unsqueeze(0).float().to(args.device)
 
         print('Creating D{}C{}'.format(nd, nc))
         conv_blocks = []

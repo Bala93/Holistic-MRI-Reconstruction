@@ -13,13 +13,14 @@ import torchvision
 from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import SliceData,KneeData
+from dataset import SliceData
 from models import DnCn
 import torchvision
 from torch import nn
 from torch.autograd import Variable
 from torch import optim
 from tqdm import tqdm
+from utils import complex_abs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,34 +32,10 @@ def create_datasets(args):
 
     return dev_data, train_data
 
-def create_datasets_knee(args):
-
-    train_data = KneeData(args.train_path,args.acceleration_factor,args.dataset_type)
-    dev_data = KneeData(args.validation_path,args.acceleration_factor,args.dataset_type)
-
-    return dev_data, train_data
-
-
-'''
-def create_datasets(args):
-
-    
-    #train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-    #dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
-
-    train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type)
-    dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type)
-
-    return dev_data, train_data
-'''
-
 
 def create_data_loaders(args):
 
-    if args.dataset_type == 'knee':
-        dev_data, train_data = create_datasets_knee(args)
-    else:
-        dev_data, train_data = create_datasets(args)   
+    dev_data, train_data = create_datasets(args)   
 
     display_data = [dev_data[i] for i in range(0, len(dev_data), len(dev_data) // 16)]
 
@@ -95,29 +72,19 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer):
     for iter, data in enumerate(tqdm(data_loader)):
 
         #print (data)
-
         #print ("Received data from loader")
         input, input_kspace, target = data
 
-        #print (input.shape,input_kspace.shape,target.shape)
+        input = input.float().to(args.device)
+        input_kspace = input_kspace.float().to(args.device)
+        target = target.float().to(args.device)
 
-        input = input.unsqueeze(1).to(args.device)
-        input_kspace = input_kspace.unsqueeze(1).to(args.device)
-        target = target.unsqueeze(1).to(args.device)
-
-        input = input.float()
-        target = target.float()
-        #print ("Initialized input and target")
-        #print("input shape: ", input.shape, "input_kspace shape",input_kspace.shape, "target shape:", target.shape)
         output = model(input,input_kspace)
 
-        #print ("Input passed to model")
-        loss = F.l1_loss(output,target)
-        #lossl1 = F.l1_loss(output,target)
-        #lossl1 = torch.abs(output - target)
-        #loss = torch.mean(((1 - target)**2) * lossl1)
+        output_abs = complex_abs(output.permute(0,2,3,1))
+        target_abs = complex_abs(target.permute(0,2,3,1))
 
-        #print ("Loss calculated")
+        loss = F.l1_loss(output_abs,target_abs)
 
         optimizer.zero_grad()
         loss.backward()
@@ -151,18 +118,19 @@ def evaluate(args, epoch, model, data_loader, writer):
     
             input, input_kspace,target = data
 
-            input = input.unsqueeze(1).to(args.device)
-            input_kspace = input_kspace.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
-    
-            input = input.float()
-            target = target.float()
-    
+            input = input.float().to(args.device)
+            input_kspace = input_kspace.float().to(args.device)
+            target = target.float().to(args.device)
+
             output = model(input,input_kspace)
-            #loss = F.mse_loss(output,target, size_average=False)
-            loss = F.mse_loss(output,target)
+
+            output_abs = complex_abs(output.permute(0,2,3,1))
+            target_abs = complex_abs(target.permute(0,2,3,1))
+
+            loss = F.mse_loss(output_abs,target_abs)
             
             losses.append(loss.item())
+
             #break
             
         writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
@@ -183,19 +151,24 @@ def visualize(args, epoch, model, data_loader, writer):
         for iter, data in enumerate(tqdm(data_loader)):
             input,input_kspace,target = data
 
-            input = input.unsqueeze(1).to(args.device)
-            input_kspace = input_kspace.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
+            input = input.float().to(args.device)
+            input_kspace = input_kspace.float().to(args.device)
+            target = target.float().to(args.device)
 
-            output = model(input.float(),input_kspace)
+            output = model(input,input_kspace)
+  
+            input_abs  = complex_abs(input.permute(0,2,3,1)).unsqueeze(1)
+            output_abs = complex_abs(output.permute(0,2,3,1)).unsqueeze(1)
+            target_abs = complex_abs(target.permute(0,2,3,1)).unsqueeze(1)
 
-            print("input: ", torch.min(input), torch.max(input))
-            print("target: ", torch.min(target), torch.max(target))
-            print("predicted: ", torch.min(output), torch.max(output))
-            save_image(input, 'Input')
-            save_image(target, 'Target')
-            save_image(output, 'Reconstruction')
-            save_image(torch.abs(target.float() - output.float()), 'Error')
+            print("input_abs: ", torch.min(input_abs), torch.max(input_abs))
+            print("target_abs: ", torch.min(target_abs), torch.max(target_abs))
+            print("predicted: ", torch.min(output_abs), torch.max(output_abs))
+
+            save_image(input_abs, 'Input')
+            save_image(target_abs, 'Target')
+            save_image(output_abs, 'Reconstruction')
+            save_image(torch.abs(target_abs - output_abs),'Error')
             break
 
 def save_model(args, exp_dir, epoch, model, optimizer,best_dev_loss,is_new_best):
@@ -226,7 +199,7 @@ def build_model(args):
     #     drop_prob=args.drop_prob
     # ).to(args.device)
     
-    model = DnCn(args,n_channels=1).to(args.device)
+    model = DnCn(args,n_channels=2).to(args.device)
 
     return model
 
