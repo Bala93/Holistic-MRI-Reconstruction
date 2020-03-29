@@ -76,7 +76,7 @@ def run_unet(args, model, data_loader):
 
             recons = model(input,input_kspace).to('cpu')
 
-            recons_abs = complex_abs(recons.permute(0,2,3,1))
+            recons = complex_abs(recons.permute(0,2,3,1))
 
 
             if args.dataset_type == 'knee':
