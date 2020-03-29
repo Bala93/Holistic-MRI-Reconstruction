@@ -9,9 +9,6 @@ from skimage.measure import compare_psnr, compare_ssim
 from skimage.filters import laplace
 from tqdm import tqdm
 
-from utils import complex_abs
-import torch
-
 
 # adding hfn metric 
 def hfn(gt,pred):
@@ -119,11 +116,8 @@ def evaluate(args, recons_key):
         with h5py.File(tgt_file) as target, h5py.File(
           args.predictions_path / tgt_file.name) as recons:
             target = target[recons_key].value
-            target = complex_abs(torch.from_numpy(target)).numpy()
             recons = recons['reconstruction'].value
             recons = np.transpose(recons,[1,2,0])
-            target = np.transpose(target,[1,2,0])
-            #print (target.shape,recons.shape) 
 
             if len(target.shape) == 2: 
                 target = np.expand_dims(target,2) # added for knee dataset 
