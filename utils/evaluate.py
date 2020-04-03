@@ -115,6 +115,11 @@ def evaluate(args, recons_key):
         with h5py.File(tgt_file) as target, h5py.File(
           args.predictions_path / tgt_file.name) as recons:
             target = target[recons_key].value
+
+            if True:
+                target = np.abs(target[:,:,:,0] + 1j * target[:,:,:,1])
+                target = np.transpose(target,[1,2,0])
+
             recons = recons['reconstruction'].value
             recons = np.transpose(recons,[1,2,0])
 

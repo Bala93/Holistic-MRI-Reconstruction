@@ -21,12 +21,24 @@ def create_tv_data(h5_dir,save_path,acc_factor):
         with h5py.File(h5_path,'r') as hf:
 
             img_volfs    = hf['volfs'].value
-            kspace_volfs = np.fft.fft2(img_volfs,norm='ortho',axes=(0,1))
-
             img_volus    = hf['img_volus_{}'.format(acc_factor)].value
             kspace_volus = hf['kspace_volus_{}'.format(acc_factor)].value
 
+            if True:
+
+                img_volfs    = img_volfs[:,:,:,0] + 1j * img_volfs[:,:,:,1]
+                img_volus    = img_volus[:,:,:,0] + 1j * img_volus[:,:,:,1]
+                kspace_volus = kspace_volus[:,:,:,0] + 1j * kspace_volus[:,:,:,1]
+
+                img_volfs = np.transpose(img_volfs,(1,2,0))
+                img_volus = np.transpose(img_volus,(1,2,0))
+                kspace_volus = np.transpose(kspace_volus,(1,2,0))
+
+            kspace_volfs = np.fft.fft2(img_volfs,norm='ortho',axes=(0,1))
+
         recon_list = []
+
+        print (img_volfs.shape,kspace_volfs.shape,img_volus.shape,kspace_volus.shape)
 
         for ii in tqdm(range(img_volfs.shape[-1])):
 
