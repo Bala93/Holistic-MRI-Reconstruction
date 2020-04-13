@@ -119,7 +119,7 @@ class UnetModel(nn.Module):
 class Discriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
 
-    def __init__(self, input_nc=1, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
+    def __init__(self, input_nc=2, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
         """Construct a PatchGAN discriminator
         Parameters:
             input_nc (int)  -- the number of channels in input images
@@ -170,16 +170,16 @@ class Discriminator(nn.Module):
 
 class CascadeUnet(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self,args):
 
         super(CascadeUnet, self).__init__()
 
-        model1 = UnetModel(in_chans=1,out_chans=1,chans=args.num_chans,num_pool_layers=args.num_pools,drop_prob=args.drop_prob)
-        model2 = UnetModel(in_chans=1,out_chans=1,chans=args.num_chans,num_pool_layers=args.num_pools,drop_prob=args.drop_prob)
+        self.model1 = UnetModel(in_chans=2,out_chans=2,chans=args.num_chans,num_pool_layers=args.num_pools,drop_prob=args.drop_prob)
+        self.model2 = UnetModel(in_chans=2,out_chans=2,chans=args.num_chans,num_pool_layers=args.num_pools,drop_prob=args.drop_prob)
 
     def forward(self,x):
         
-        y1 = model1(x) + x 
-        y2 = model2(y1) + y1
+        y1 = self.model1(x) + x 
+        y2 = self.model2(y1) + y1
 
         return y2

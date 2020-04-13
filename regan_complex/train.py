@@ -52,7 +52,7 @@ def create_data_loaders(args):
     return train_loader, dev_loader, display_loader
 
 
-def train_epoch(args, epoch, modelG, modelD, data_loader, optimizerG, optimizerD, writer, display_loader, exp_dir, vgg):
+def train_epoch(args, epoch, modelG, modelD, data_loader, optimizerG, optimizerD, writer, display_loader, exp_dir):
 
     modelG.train()
     modelD.train()
@@ -79,8 +79,8 @@ def train_epoch(args, epoch, modelG, modelD, data_loader, optimizerG, optimizerD
 
         input,_,target = data
 
-        input = input.float()
-        target = target.float()
+        input = input.float().to(args.device)
+        target = target.float().to(args.device)
 
         outG = modelG(input)
 
@@ -131,7 +131,6 @@ def train_epoch(args, epoch, modelG, modelD, data_loader, optimizerG, optimizerD
 
         writer.add_scalar('ImageLoss', lossG_img.item(), global_step + iter)
         writer.add_scalar('FFTLoss', lossG_fft.item(), global_step + iter)
-        writer.add_scalar('VGGLoss', lossG_vgg.item(), global_step + iter)
         
 
         #break
@@ -218,7 +217,7 @@ def build_model(args):
 
 def build_discriminator(args):
     
-    netD = Discriminator(input_nc=1).to(args.device)
+    netD = Discriminator(input_nc=2).to(args.device)
     optimizerD = optim.SGD(netD.parameters(),lr=5e-3)
     
     return netD, optimizerD
@@ -298,6 +297,8 @@ def main(args):
         if args.data_parallel:
            modelG = torch.nn.DataParallel(modelG)
            modelD = torch.nn.DataParallel(modelD)
+
+        print (modelG,modelD)
 
         optimizerG = build_optim(args, modelG.parameters())
         start_epoch = 0
