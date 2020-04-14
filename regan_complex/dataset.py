@@ -6,7 +6,6 @@ from torch.utils.data import Dataset
 import torch
 from skimage import feature
 import os 
-from utils import npComplexToTorch
 
 class SliceData(Dataset):
     """

@@ -6,9 +6,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from dataset import SliceDataDev
-from models import UnetModel
+from models import CascadeUnet
 import h5py
 from tqdm import tqdm
+from utils import complex_abs
 
 def save_reconstructions(reconstructions, out_dir):
 
@@ -43,10 +44,9 @@ def load_model(checkpoint_file):
 
     checkpoint = torch.load(checkpoint_file)
     args = checkpoint['args']
-    model = UnetModel(1, 1, args.num_chans, args.num_pools, args.drop_prob).to(args.device)
-    #print(model)
-    if args.data_parallel:
-        model = torch.nn.DataParallel(model)
+
+    model = CascadeUnet(args).to(args.device)
+
     model.load_state_dict(checkpoint['modelG'])
 
     return model
@@ -60,11 +60,12 @@ def run_gan(args, model, data_loader):
         for (iter,data) in enumerate(tqdm(data_loader)):
 
             input,_,target,fnames,slices = data
-            input = input.unsqueeze(1).to(args.device)
-            input = input.float()
-            recons = model(input.float()) 
-            recons = recons + input 
-            recons = recons.to('cpu').squeeze(1)
+            input = input.float().to(args.device)
+            recons = model(input)
+            recons = recons.to('cpu')
+            recons = recons.permute(0,2,3,1)
+            recons = complex_abs(recons)
+
 
             if args.dataset_type=='cardiac':
                 recons = recons[:,5:155,5:155]

@@ -146,11 +146,8 @@ def evaluate(args, epoch, model, data_loader, writer):
         for iter, data in enumerate(tqdm(data_loader)):
 
             input,_,target = data
-            input = input.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
-            
-            input = input.float()
-            target = target.float()
+            input = input.float().to(args.device)
+            target = target.float().to(args.device)
             output = model(input)
 
             loss = F.l1_loss(output,target)
@@ -176,9 +173,7 @@ def visualize(args, epoch, model, data_loader, writer):
             input,_,target = data
             print("input: ", torch.min(input), torch.max(input))
             print("target: ", torch.min(target), torch.max(target))
-            input = input.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
-            input  = input.float()
+            input  = input.float().to(args.device)
             output = model(input)
             output = output + input # learning residual and adding to input and use this as loss         
             
