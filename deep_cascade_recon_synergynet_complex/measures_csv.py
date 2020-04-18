@@ -7,6 +7,9 @@ import numpy as np
 from skimage.measure import compare_psnr, compare_ssim
 from tqdm import tqdm
 import pandas as pd 
+import torch
+
+from utils import complex_abs
 
 
 def mse(gt, pred):
@@ -31,11 +34,14 @@ def ssim(gt, pred):
 
 def evaluate(args, recons_key,metrics_info):
 
-    for tgt_file in args.target_path.iterdir():
+    for tgt_file in tqdm(args.target_path.iterdir()):
+        
         with h5py.File(tgt_file) as target, h5py.File(args.predictions_path / tgt_file.name) as recons:
             target = target[recons_key].value
+            target = complex_abs(torch.from_numpy(target)).numpy()
             recons = recons['reconstruction'].value
             recons = np.transpose(recons,[1,2,0])
+            target = np.transpose(target,[1,2,0])
             #print (target.shape,recons.shape)
             no_slices = target.shape[-1]
 
@@ -76,6 +82,5 @@ if __name__ == '__main__':
     csv_path     = args.report_path / 'metrics.csv'
     df = pd.DataFrame(metrics_info)
     df.to_csv(csv_path)
-    #print (df)
 
 
