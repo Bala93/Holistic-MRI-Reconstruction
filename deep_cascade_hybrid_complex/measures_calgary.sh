@@ -1,4 +1,4 @@
-MODEL='deep-cascade-cnn'
+MODEL='deep-cascade-hybrid'
 DATASET_TYPE='calgary'
 BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
 #MASK_TYPE='gaussian'
