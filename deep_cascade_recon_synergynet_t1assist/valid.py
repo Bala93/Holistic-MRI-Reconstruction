@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from dataset import SliceDataDev,KneeDataDev
+from dataset import SliceDataDev
 from models import DnCn
 import h5py
 from tqdm import tqdm
@@ -27,20 +27,12 @@ def save_reconstructions(reconstructions, out_dir):
 
 def create_data_loaders(args):
 
-    if args.dataset_type == 'knee':
-        data = KneeDataDev(args.data_path,args.acceleration_factor,args.dataset_type)
-        data_loader = DataLoader(
-            dataset=data,
-            batch_size=args.batch_size,
-            num_workers=1,
-            pin_memory=True,)
-    else:
-        data = SliceDataDev(args.data_path,args.acceleration_factor,args.dataset_type)
-        data_loader = DataLoader(
-            dataset=data,
-            batch_size=args.batch_size,
-            num_workers=1,
-            pin_memory=True,)
+    data = SliceDataDev(args.data_path,args.dataset_type)
+    data_loader = DataLoader(
+        dataset=data,
+        batch_size=args.batch_size,
+        num_workers=1,
+        pin_memory=True,)
 
     return data_loader
 
@@ -63,46 +55,25 @@ def run_unet(args, model, data_loader):
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
 
+            t2imgus, t2kspaceus, t1imgfs, t2imgfs,slices,fnames = data 
 
-            if args.dataset_type == 'knee' :
-                input, input_kspace, target,fnames = data
-            else:
-                input, input_kspace, target,fnames,slices = data
+            t2imgus = t2imgus.unsqueeze(1).float().to(args.device)
+            t2imgfs = t2imgfs.unsqueeze(1).float().to(args.device)
+ 
+            t1imgfs = t1imgfs.unsqueeze(1).float().to(args.device)
+             
+            t2kspaceus = t2kspaceus.permute(0,3,1,2).float().to(args.device)
 
-            input = input.unsqueeze(1).to(args.device)
-            #input_kspace = input_kspace.unsqueeze(1).to(args.device)
-            input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
-            input = input.float()
-            input_kspace = input_kspace.float()
-            recons = model(input,input_kspace).to('cpu').squeeze(1)
+            recons = model(t2imgus,t2kspaceus,t1imgfs).to('cpu').squeeze(1)
 
-            if args.dataset_type == 'cardiac':
-                recons = recons[:,5:155,5:155]
+            for i in range(recons.shape[0]):
+                recons[i] = recons[i] 
+                reconstructions[fnames[i]].append((slices[i].numpy(), recons[i].numpy()))
 
-            if args.dataset_type == 'knee':
-                for i in range(recons.shape[0]):
-                    recons[i] = recons[i] 
-                    reconstructions[fnames[i]].append(recons[i].numpy())
-
-            else :
-                for i in range(recons.shape[0]):
-                    recons[i] = recons[i] 
-                    reconstructions[fnames[i]].append((slices[i].numpy(), recons[i].numpy()))
-
-    if args.dataset_type == 'knee':
-
-        reconstructions = {
-            fname: np.stack([pred for pred in sorted(slice_preds)])
+    reconstructions = {
+        fname: np.stack([pred for _, pred in sorted(slice_preds)])
             for fname, slice_preds in reconstructions.items()
         }
-
-    else:
-         reconstructions = {
-             fname: np.stack([pred for _, pred in sorted(slice_preds)])
-             for fname, slice_preds in reconstructions.items()
-         }
-
-
             
     return reconstructions
 

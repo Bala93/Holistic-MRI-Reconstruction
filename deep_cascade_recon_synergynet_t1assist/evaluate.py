@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    recons_key = 'volfs'
+    recons_key = 't2imgfs'
     metrics = evaluate(args, recons_key)
     metrics_report = metrics.get_report()
 

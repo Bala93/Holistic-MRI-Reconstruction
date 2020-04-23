@@ -456,7 +456,8 @@ class ReconSynergyNetAblative(nn.Module):
 
         dautomap_model = dAUTOMAP(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
         unet_model = UnetModel(1,1,args.num_chans, args.num_pools, args.drop_prob)
-        srcnnlike_model = conv_block(n_ch=4,nd=5,n_out=1) #unet,dautomap,zf,t1
+        #srcnnlike_model = conv_block(n_ch=4,nd=5,n_out=1) #unet,dautomap,zf,t1
+        srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1) #unet,dautomap,zf
 
         self.KI_layer = dautomap_model        
         self.II_layer = unet_model
@@ -468,7 +469,8 @@ class ReconSynergyNetAblative(nn.Module):
         dautomap_pred = self.KI_layer(kt2)
         unet_pred     = self.II_layer(xt2)
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
-        pred_cat = torch.cat([unet_pred,dautomap_pred,xt2,xt1],dim=1)
+        #pred_cat = torch.cat([unet_pred,dautomap_pred,xt2,xt1],dim=1) # t1 assistance 
+        pred_cat = torch.cat([unet_pred,dautomap_pred,xt2],dim=1)
         recons = self.Re_layer(pred_cat)
         
         return recons

@@ -70,7 +70,7 @@ class SliceDataDev(Dataset):
             t2imgus  = data['t2imgus'][:,:,slice]
 
             t2kspaceus  = data['t2kspaceus'][:,:,slice]
-            t2kspaceus= npComplexToTorch(input_kspace)
+            t2kspaceus= npComplexToTorch(t2kspaceus)
     
-            return torch.from_numpy(t2imgus), t2kspaceus, torch.from_numpy(t1imgfs), torch.from_numpy(t2imgfs)
+            return torch.from_numpy(t2imgus), t2kspaceus, torch.from_numpy(t1imgfs), torch.from_numpy(t2imgfs),slice,str(fname.name)
  
