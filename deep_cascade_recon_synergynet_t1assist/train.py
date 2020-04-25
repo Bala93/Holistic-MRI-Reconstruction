@@ -13,7 +13,7 @@ import torchvision
 from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import SliceData
+from dataset import SliceDataMrbrain
 from models import DnCn
 import torchvision
 from torch import nn
@@ -28,8 +28,11 @@ logger = logging.getLogger(__name__)
 
 def create_datasets(args):
 
-    train_data = SliceData(args.train_path,args.dataset_type)
-    dev_data = SliceData(args.validation_path,args.dataset_type)
+    #train_data = SliceData(args.train_path,args.dataset_type)
+    #dev_data = SliceData(args.validation_path,args.dataset_type)
+
+    train_data = SliceDataMrbrain(args.train_path,args.acceleration_factor)
+    dev_data = SliceDataMrbrain(args.validation_path,args.acceleration_factor)
 
     return dev_data, train_data
 

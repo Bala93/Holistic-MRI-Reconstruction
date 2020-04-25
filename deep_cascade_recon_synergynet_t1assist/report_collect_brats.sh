@@ -2,7 +2,7 @@
 MODEL='deep-cascade-rsn1-assist'
 #MODEL='deep-cascade-rsn1'
 #MODEL='zf'
-BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
+BASE_PATH='/data/balamurali'
 DATASET_TYPE='brats'
 
 
@@ -17,9 +17,8 @@ cat ${REPORT_PATH}
 echo "\n"
 #ACC_FACTOR_5x
 
-MODEL='deep-cascade-rsn1'
+MODEL='unet'
 #MODEL='zf'
-BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
 DATASET_TYPE='brats'
 
 

@@ -428,7 +428,7 @@ class ReconSynergyNetAblative(nn.Module):
 
         if args.dataset_type=='cardiac':
             patch_size = 150
-        elif args.dataset_type=='brats':
+        elif args.dataset_type=='mrbrain_flair':
             patch_size = 240
         elif args.dataset_type=='knee':
             patch_size = 320  
@@ -469,8 +469,8 @@ class ReconSynergyNetAblative(nn.Module):
         dautomap_pred = self.KI_layer(kt2)
         unet_pred     = self.II_layer(xt2)
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
-        #pred_cat = torch.cat([unet_pred,dautomap_pred,xt2,xt1],dim=1) # t1 assistance 
-        pred_cat = torch.cat([unet_pred,dautomap_pred,xt2],dim=1)
+        pred_cat = torch.cat([unet_pred,dautomap_pred,xt2],dim=1) 
+        #pred_cat = torch.cat([unet_pred,dautomap_pred,xt1,xt2],dim=1) # t1 assistance 
         recons = self.Re_layer(pred_cat)
         
         return recons
@@ -478,7 +478,7 @@ class ReconSynergyNetAblative(nn.Module):
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=1, nd=5, **kwargs):
+    def __init__(self,args,n_channels=2, nc=3, nd=5, **kwargs):
 
         super(DnCn, self).__init__()
 

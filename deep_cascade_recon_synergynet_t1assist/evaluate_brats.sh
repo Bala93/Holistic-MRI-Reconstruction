@@ -1,6 +1,6 @@
-MODEL='deep-cascade-rsn1'
+MODEL='deep-cascade-rsn1-assist'
 #MODEL='zf'
-BASE_PATH='/media/htic/NewVolume1/murali/MR_reconstruction'
+BASE_PATH='/data/balamurali'
 DATASET_TYPE='brats'
 
 ACC_FACTOR='5x'

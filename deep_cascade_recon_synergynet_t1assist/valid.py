@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from dataset import SliceDataDev
+from dataset import SliceDataDevMrbrain
 from models import DnCn
 import h5py
 from tqdm import tqdm
@@ -27,7 +27,8 @@ def save_reconstructions(reconstructions, out_dir):
 
 def create_data_loaders(args):
 
-    data = SliceDataDev(args.data_path,args.dataset_type)
+    data = SliceDataDevMrbrain(args.data_path,args.acceleration_factor)
+
     data_loader = DataLoader(
         dataset=data,
         batch_size=args.batch_size,
