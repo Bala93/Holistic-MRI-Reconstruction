@@ -39,12 +39,13 @@ class SliceData(Dataset):
             else 'reconstruction_rss'
 
         self.examples = []
-        files = list(pathlib.Path(root).iterdir())[:50]
+        files = list(pathlib.Path(root).iterdir())
         if sample_rate < 1:
             random.shuffle(files)
             num_files = round(len(files) * sample_rate)
             files = files[:num_files]
-        for fname in sorted(files):
+        print ("Preparing data")
+        for fname in tqdm(sorted(files)):
             data = h5py.File(fname, 'r')
 
             # Compute the size of zero padding in k-space

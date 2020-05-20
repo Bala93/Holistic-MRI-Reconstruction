@@ -141,20 +141,20 @@ def create_data_loaders(args):
         dataset=train_data,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=4,
-        pin_memory=True,
+        #num_workers=1,
+        #pin_memory=True,
     )
     dev_loader = DataLoader(
         dataset=dev_data,
         batch_size=args.batch_size,
-        num_workers=4,
-        pin_memory=True,
+        #num_workers=1,
+        #pin_memory=True,
     )
     display_loader = DataLoader(
         dataset=display_data,
-        batch_size=16,
-        num_workers=4,
-        pin_memory=True,
+        batch_size=4,
+        #num_workers=1,
+        #pin_memory=True,
     )
 
     return train_loader, dev_loader, display_loader
@@ -215,18 +215,25 @@ def evaluate(args, epoch, model, data_loader, writer):
     
     with torch.no_grad():
         for iter, data in enumerate(tqdm(data_loader)):
-            
-            input, target, mean, std, _, _ = data
 
-            input = input.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
-
-            output = model(input)
-                        
+            image_crop, kspace_crop, image, kspace, target, mask, _, crop_size_tensor, _, _ = data
+    
+            image_crop = image_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace_crop = kspace_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace = kspace.to(args.device)
+            image = image.permute(0, 3, 1, 2).to(args.device)
+            target = target.to(args.device)
+            mask = mask.to(args.device)
+           
+            crop_size = (int(crop_size_tensor.numpy()[0,0]), int(crop_size_tensor.numpy()[0,1]))
+    
+            #print (image_crop.shape, kspace_crop.shape, image.shape, kspace.shape, mask.shape, crop_size_tensor.shape)
+            output = model(image_crop, kspace_crop, image, kspace, mask, crop_size)
+            output = T.complex_abs(output.permute(0,2,3,1))
+    
             loss = F.l1_loss(output,target)
             
             losses.append(loss.item())
-
             #break
             
         writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
@@ -245,21 +252,25 @@ def visualize(args, epoch, model, data_loader, writer):
     model.eval()
     with torch.no_grad():
         for iter, data in enumerate(tqdm(data_loader)):
-            input, target, mean, std, _, _ = data 
 
-            input = input.unsqueeze(1).to(args.device)
-            target = target.unsqueeze(1).to(args.device)
+            image_crop, kspace_crop, image, kspace, target, mask, abs_max, crop_size_tensor, _, _ = data
+    
+            image_crop = image_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace_crop = kspace_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace = kspace.to(args.device)
+            image = image.permute(0, 3, 1, 2).to(args.device)
+            target = target.to(args.device)
+            mask = mask.to(args.device)
+           
+            crop_size = (int(crop_size_tensor.numpy()[0,0]), int(crop_size_tensor.numpy()[0,1]))
+    
+            #print (image_crop.shape, kspace_crop.shape, image.shape, kspace.shape, mask.shape, crop_size_tensor.shape)
+            output = model(image_crop, kspace_crop, image, kspace, mask, crop_size)
 
-            mean = mean.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(args.device)
-            std = std.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(args.device)
-            output = model(input)
+            output = T.complex_abs(output.permute(0,2,3,1))
+            image_crop_abs = T.complex_abs(image_crop.permute(0,2,3,1))
 
-
-            input = input * std + mean
-            output = output * std + mean 
-            target = target * std + mean
-
-            save_image(input, 'Input')
+            save_image(image_crop_abs, 'Input')
             save_image(target, 'Target')
             save_image(output, 'Reconstruction')
             save_image(torch.abs(target.float() - output.float()), 'Error')
