@@ -359,7 +359,7 @@ def main(args):
         scheduler.step(epoch)
         train_loss,train_time = train_epoch(args, epoch, model,train_loader,optimizer,writer)
         dev_loss,dev_time = evaluate(args, epoch, model, dev_loader, writer)
-        visualize(args, epoch, model, display_loader, writer)
+        #visualize(args, epoch, model, display_loader, writer)
 
         is_new_best = dev_loss < best_dev_loss
         best_dev_loss = min(best_dev_loss,dev_loss)

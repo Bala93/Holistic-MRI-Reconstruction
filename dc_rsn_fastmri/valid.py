@@ -6,10 +6,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from dataset import SliceDataDev
-from models import UnetModel
+from models import DnCn
 import h5py
 from tqdm import tqdm
-import transforms
+import transforms as T
 
 
 class DataTransform:
@@ -52,45 +52,49 @@ class DataTransform:
                 mean (float): Mean value used for normalization.
                 std (float): Standard deviation value used for normalization.
         """
-        kspace = transforms.to_tensor(kspace)
+        kspace = T.to_tensor(kspace)
         # Apply mask
         if self.mask_func:
             seed = None if not self.use_seed else tuple(map(ord, fname))
-            masked_kspace, mask = transforms.apply_mask(kspace, self.mask_func, seed)
+            masked_kspace, mask = T.apply_mask(kspace, self.mask_func, seed)
         else:
             masked_kspace = kspace
+            mask = torch.from_numpy(mask[:, np.newaxis].astype(np.float32))
+
+        mask = mask.repeat(kspace.shape[0],1,1) # 640 is fixed for single coil 
 
         # Inverse Fourier Transform to get zero filled solution
-        image = transforms.ifft2(masked_kspace)
+        image = T.ifft2(masked_kspace)
+        
+        # Complex abs
+        image_abs = T.complex_abs(image)
+        image_abs_max = image_abs.max()
+        
+        # Image and kspace normalization
+        image_norm = image / image_abs_max
+        masked_kspace_norm = masked_kspace / image_abs_max
+                
         # Crop input image to given resolution if larger
         smallest_width = min(self.resolution, image.shape[-2])
         smallest_height = min(self.resolution, image.shape[-3])
+        
         if target is not None:
             smallest_width = min(smallest_width, target.shape[-1])
             smallest_height = min(smallest_height, target.shape[-2])
 
         crop_size = (smallest_height, smallest_width)
-        image = transforms.complex_center_crop(image, crop_size)
-        # Absolute value
-        image = transforms.complex_abs(image)
-        # Apply Root-Sum-of-Squares if multicoil data
-        if self.which_challenge == 'multicoil':
-            image = transforms.root_sum_of_squares(image)
-        # Normalize input
-        image, mean, std = transforms.normalize_instance(image, eps=1e-11)
-        image = image.clamp(-6, 6)
-        # Normalize target
+        crop_size_tensor = torch.Tensor(crop_size)
+        
+        image_norm_crop = T.complex_center_crop(image_norm, crop_size)
+        kspace_norm_crop = T.fftshift(T.fft2(image_norm_crop))
+        
         if target is not None:
-            target = transforms.to_tensor(target)
-            target = transforms.center_crop(target, crop_size)
-            target = transforms.normalize(target, mean, std, eps=1e-11)
-            target = target.clamp(-6, 6)
+            target = T.to_tensor(target)
+            target_norm = target / image_abs_max
         else:
-            target = torch.Tensor([0])
-        return image, target, mean, std, fname, slice
-
-
-
+            target_norm = torch.Tensor([0])
+            
+        return image_norm_crop, kspace_norm_crop, image_norm, masked_kspace_norm, target_norm, mask, image_abs_max, crop_size_tensor, fname, slice
 
 
 def save_reconstructions(reconstructions, out_dir):
@@ -127,7 +131,7 @@ def create_data_loaders(args):
 def load_model(checkpoint_file):
     checkpoint = torch.load(checkpoint_file)
     args = checkpoint['args']
-    model = UnetModel(1, 1, args.num_chans, args.num_pools, args.drop_prob).to(args.device)
+    model = DnCn(args).to(args.device)    
     if args.data_parallel:
         model = torch.nn.DataParallel(model)
     model.load_state_dict(checkpoint['model'])
@@ -140,17 +144,25 @@ def run_unet(args, model, data_loader):
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
 
-            input, _, mean, std, fnames, slices = data
-             
-            input = input.unsqueeze(1).to(args.device)
-            mean = mean.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(args.device)
-            std = std.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(args.device)
+            image_crop, kspace_crop, image, kspace, target, mask, abs_max, crop_size_tensor, fnames, slices = data
+    
+            image_crop = image_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace_crop = kspace_crop.permute(0, 3, 1, 2).to(args.device)
+            kspace = kspace.to(args.device)
+            image = image.permute(0, 3, 1, 2).to(args.device)
+            target = target.to(args.device)
+            mask = mask.to(args.device)
+            abs_max = abs_max.to(args.device)
+           
+            crop_size = (int(crop_size_tensor.numpy()[0,0]), int(crop_size_tensor.numpy()[0,1]))
+    
+            #print (image_crop.shape, kspace_crop.shape, image.shape, kspace.shape, mask.shape, crop_size_tensor.shape)
+            output = model(image_crop, kspace_crop, image, kspace, mask, crop_size)
+            output = T.complex_abs(output.permute(0,2,3,1))
+ 
+            recons = output * abs_max
 
-            recons = model(input)
-
-            recons = recons * std + mean
-
-            recons = recons.to('cpu').squeeze(1)
+            recons = recons.to('cpu')
 
             for i in range(recons.shape[0]):
                 recons[i] = recons[i] 
