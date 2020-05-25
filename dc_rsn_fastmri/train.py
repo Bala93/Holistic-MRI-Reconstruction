@@ -13,7 +13,8 @@ import torchvision
 from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import SliceData
+#from dataset import SliceData
+from dataset_csv import SliceData
 from models import DnCn
 import torchvision
 from torch import nn
@@ -119,12 +120,14 @@ def create_datasets(args):
     transform = DataTransform(args.resolution, args.challenge, mask, use_seed=False)
 
     train_data = SliceData(
-        root = args.train_path,
+        root=args.train_path,
+        csv_path=args.train_csv_path,
         transform=transform,
         sample_rate=args.sample_rate)
 
     dev_data = SliceData(
         root = args.validation_path,
+        csv_path=args.valid_csv_path,
         transform=transform,
         sample_rate=args.sample_rate)
 
@@ -140,7 +143,7 @@ def create_data_loaders(args):
     train_loader = DataLoader(
         dataset=train_data,
         batch_size=args.batch_size,
-        shuffle=True,
+        #shuffle=True,
         #num_workers=1,
         #pin_memory=True,
     )
@@ -401,6 +404,8 @@ def create_arg_parser():
                         help='Path to an existing checkpoint. Used along with "--resume"')
     parser.add_argument('--train-path',type=str,help='Path to train h5 files')
     parser.add_argument('--validation-path',type=str,help='Path to test h5 files')
+    parser.add_argument('--train-csv-path',type=str,help='csv file containing the h5 file name')
+    parser.add_argument('--valid-csv-path',type=str,help='csv file containing the h5 file name')
 
     parser.add_argument('--resolution', default=320, type=int, help='Resolution of images (brain \
                 challenge expects resolution of 384, knee resolution expcts resolution of 320')

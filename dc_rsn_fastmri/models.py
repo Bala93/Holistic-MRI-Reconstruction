@@ -482,7 +482,7 @@ class DnCn(nn.Module):
 
         super(DnCn, self).__init__()
 
-        self.nc = 3
+        self.nc = 5
         conv_blocks = []
         dcs = []
 
