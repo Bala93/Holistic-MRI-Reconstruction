@@ -13,9 +13,8 @@ import torchvision
 from tensorboardX import SummaryWriter
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import SliceDataMrbrain, SliceDataEvaluateMrbrain
-#from models import DnCn,UnetModel,UnetModelTakeLatentDecoder,DnCnFeature,DnCnFeatureLoop,UnetModelTakeEverywhereWithIntermediate,DnCnFeatureLoopAssistOnlyFirstBlock
-from models import *
+from dataset import SliceData, SliceDataEvaluate
+from models import DnCn,UnetModel,UnetModelTakeLatentDecoder,DnCnFeature,DnCnFeatureLoop,UnetModelTakeEverywhereWithIntermediate
 import torchvision
 from torch import nn
 from torch.autograd import Variable
@@ -31,8 +30,14 @@ logger = logging.getLogger(__name__)
 
 def create_datasets(args):
 
-    train_data = SliceDataMrbrain(args.train_path,args.acceleration_factor)
-    dev_data = SliceDataEvaluateMrbrain(args.validation_path,args.acceleration_factor, args.dataset_type,args.dncn_model_path)
+    
+    #train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
+    #dev_data = SliceData(args.validation_path,args.acceleration_factor,args.dataset_type,args.usmask_path)
+
+    train_data = SliceData(args.train_path,args.acceleration_factor,args.dataset_type)
+    #train_data = SliceDataEvaluate(args.train_path,args.acceleration_factor,args.dataset_type,args.dncn_model_path)
+
+    dev_data = SliceDataEvaluate(args.validation_path,args.acceleration_factor,args.dataset_type, args.dncn_model_path)
 
     return dev_data, train_data
 
@@ -82,7 +87,7 @@ def train_epoch(args, epoch, unetmodel, model,data_loader, optimizer, writer,us_
         #print (data)
 
         #print ("Received data from loader")
-        input, input_kspace,t1imgfs,target = data
+        input, input_kspace, target = data
 
         #print (input.shape,target.shape)
 
@@ -93,7 +98,6 @@ def train_epoch(args, epoch, unetmodel, model,data_loader, optimizer, writer,us_
         
         #target = target.unsqueeze(1).to(args.device)
         target = target.unsqueeze(1).to(args.device)
-        t1imgfs = t1imgfs.unsqueeze(1).float().to(args.device)
 
         #print (input.device,input_kspace.device,target.device)
         input = input.float()
@@ -116,7 +120,7 @@ def train_epoch(args, epoch, unetmodel, model,data_loader, optimizer, writer,us_
 
         #print ("Outside:",input.shape,input_kspace.shape,feat.shape,us_mask.shape)
         us_mask1 = us_mask.repeat(input.shape[0],1,1).unsqueeze(1) # 256,256 to 4, 256,256  to 4,1,256,256 after unsqueeze
-        output = model(input,input_kspace, feat,us_mask1,seg,t1imgfs)
+        output = model(input,input_kspace, feat,us_mask1,seg)
         #print ("Outside:",output.shape)
         #print("output shape: ", output.shape, "target shape:", target.shape)
    
@@ -158,14 +162,13 @@ def evaluate(args, epoch, unetmodel, model, data_loader, writer,us_mask):
     with torch.no_grad():
         for iter, data in enumerate(tqdm(data_loader)):
     
-            input, input_kspace, target, predictedimg,t1imgfs = data
+            input, input_kspace, target, predictedimg = data
 
             input = input.unsqueeze(1).to(args.device)
             input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
             #input_kspace = input_kspace.unsqueeze(1).to(args.device)
 
             target = target.unsqueeze(1).to(args.device)
-            t1imgfs = t1imgfs.unsqueeze(1).float().to(args.device)
     
             input = input.float()
             input_kspace = input_kspace.float()
@@ -186,7 +189,7 @@ def evaluate(args, epoch, unetmodel, model, data_loader, writer,us_mask):
                 feat = feat[:,:,5:155,5:155]
 
             us_mask1 = us_mask.repeat(input.shape[0],1,1).unsqueeze(1)
-            output = model(input, input_kspace, feat,us_mask1,seg,t1imgfs)
+            output = model(input, input_kspace, feat,us_mask1,seg)
             #loss = F.mse_loss(output,target, size_average=False)
             loss = F.mse_loss(output,target)
             
@@ -320,7 +323,6 @@ def build_recmodel(args):
 def build_model(args):
     
     model = DnCnFeatureLoop(args,n_channels=1)
-    #model = DnCnFeatureLoopAssistOnlyFirstBlock(args,n_channels=1)
     #model = nn.DataParallel(model)
     model = model.to(args.device)
 

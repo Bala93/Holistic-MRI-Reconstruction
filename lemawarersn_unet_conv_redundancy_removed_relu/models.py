@@ -423,14 +423,14 @@ def conv_block(n_ch, nd, nf=32, ks=3, dilation=1, bn=False, nl='lrelu', conv_dim
 class ConvFeatureBlock(nn.Module):
     def __init__(self,n_ch,nf=32):
         super(ConvFeatureBlock,self).__init__()
-        na=32
+
         #self.conv1x1=nn.Conv2d(1984,nf,kernel_size=1)
         #self.conv1x1=nn.Conv2d(992,nf,kernel_size=1)
         self.conv1=nn.Sequential(nn.Conv2d(n_ch,nf,kernel_size=3,padding=1),nn.ReLU())
-        self.conv2=nn.Sequential(nn.Conv2d(nf+na,nf,kernel_size=3,padding=1),nn.ReLU())
-        self.conv3=nn.Sequential(nn.Conv2d(nf+na,nf,kernel_size=3,padding=1),nn.ReLU())
-        self.conv4=nn.Sequential(nn.Conv2d(nf+na,nf,kernel_size=3,padding=1),nn.ReLU())
-        self.conv5=nn.Conv2d(nf+na,1,kernel_size=3,padding=1)
+        self.conv2=nn.Sequential(nn.Conv2d(nf+32,nf,kernel_size=3,padding=1),nn.ReLU())
+        self.conv3=nn.Sequential(nn.Conv2d(nf+32,nf,kernel_size=3,padding=1),nn.ReLU())
+        self.conv4=nn.Sequential(nn.Conv2d(nf+32,nf,kernel_size=3,padding=1),nn.ReLU())
+        self.conv5=nn.Conv2d(nf+32,1,kernel_size=3,padding=1)
 
       
     def forward(self, x, feat):
@@ -494,13 +494,23 @@ class ReconSynergyNetAblative(nn.Module):
         unet_model = FastMRIUnetModel(1,1,32,4,0)
         srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1)
 
+        # load pretrained weights which are obtained from separately trainining the individual blocks to get the best possible result
+
+#        unet_checkpoint     = torch.load(args.unet_model_path)
+#        dautomap_checkpoint = torch.load(args.dautomap_model_path)
+#        srcnnlike_checkpoint= torch.load(args.srcnnlike_model_path)
+#
+#        unet_model.load_state_dict(unet_checkpoint['model'])
+#        dautomap_model.load_state_dict(dautomap_checkpoint['model'])
+#        srcnnlike_model.load_state_dict(srcnnlike_checkpoint['model'])
+
 
         self.KI_layer = dautomap_model        
         self.II_layer = unet_model
         self.Re_layer = srcnnlike_model        
         
 
-    def forward(self, x, xk,t1):
+    def forward(self, x, xk):
         dautomap_pred = self.KI_layer(xk)
 
         if self.dataset_type=='cardiac':
@@ -515,7 +525,6 @@ class ReconSynergyNetAblative(nn.Module):
             x = x[:,:,5:155,5:155]
 
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
-        #pred_cat = torch.cat([unet_pred,dautomap_pred,x,t1],dim=1)
         pred_cat = torch.cat([unet_pred,dautomap_pred,x],dim=1)
         recons = self.Re_layer(pred_cat)
         
@@ -557,15 +566,32 @@ class ReconSynergyNetAblativeFeature(nn.Module):
           'nl':'relu'
         }
         self.dataset_type = args.dataset_type
-        
+
         #dautomap_model = dAUTOMAP(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
-        dautomap_model = dAUTOMAPFeat(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])#working ********
+        dautomap_model = dAUTOMAPFeat(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
         #unet_model = FastMRIUnetModel(1,1,args.num_chans, args.num_pools, args.drop_prob)
-        unet_model = UnetModelAssistEverywhere(1,1,args.num_chans, args.num_pools, args.drop_prob) #working *******
+        unet_model = UnetModelAssistEverywhere(1,1,args.num_chans, args.num_pools, args.drop_prob)
         #unet_model = UnetModelAssistLatentDecoder(1,1,args.num_chans, args.num_pools, args.drop_prob)
         srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1)
-        #srcnnlike_model =  ConvFeatureBlock(4)
         #srcnnlike_model =  ConvFeatureBlock(3)
+
+        # load pretrained weights which are obtained from separately trainining the individual blocks to get the best possible result
+        #unet_checkpoint     = torch.load(args.unet_model_path)
+        #dautomap_checkpoint = torch.load(args.dautomap_model_path)
+        #srcnnlike_checkpoint= torch.load(args.srcnnlike_model_path)
+        #print (unet_checkpoint['model'].keys(),dautomap_checkpoint['model'].keys())
+
+        #upd_unet_checkpoint = fix_module_from_dataparallel(unet_checkpoint['model'])
+        #print (upd_unet_checkpoint.keys(),dautomap_checkpoint['model'].keys())
+        #unet_model.load_state_dict(upd_unet_checkpoint)
+        #dautomap_model.load_state_dict(dautomap_checkpoint['model'])
+        #srcnnlike_model.load_state_dict(srcnnlike_checkpoint['model_re'])
+
+        #for param in dautomap_model.parameters():
+        #    param.requires_grad = False 
+
+        #for param in unet_model.parameters():
+        #    param.requires_grad = False 
 
 
         self.KI_layer = dautomap_model        
@@ -573,7 +599,7 @@ class ReconSynergyNetAblativeFeature(nn.Module):
         self.Re_layer = srcnnlike_model        
 
 
-    def forward(self, x, xk,feat,seg,t1):
+    def forward(self, x, xk,feat,seg):
 
         #print (x.shape,xk.shape,feat.shape)
         dautomap_pred = self.KI_layer(xk,feat)
@@ -592,7 +618,6 @@ class ReconSynergyNetAblativeFeature(nn.Module):
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
 
         #pred_cat = torch.cat([unet_pred,dautomap_pred,x,seg],dim=1)
-        #pred_cat = torch.cat([unet_pred,dautomap_pred,x,t1],dim=1)
         pred_cat = torch.cat([unet_pred,dautomap_pred,x],dim=1)
         recons = self.Re_layer(pred_cat)#,feat)
         
@@ -608,7 +633,7 @@ class ReconSynergyNetAblativeFeature(nn.Module):
 
 class DnCn(nn.Module):
 
-    def __init__(self,args,n_channels=2, nc=1, nd=5, **kwargs):
+    def __init__(self,args,n_channels=2, nc=5, nd=5, **kwargs):
 
         super(DnCn, self).__init__()
 
@@ -620,34 +645,34 @@ class DnCn(nn.Module):
 
         print('Creating D{}C{}'.format(nd, nc))
         conv_blocks = []
-        #dcs = []
+        dcs = []
 
 
         for i in range(nc):
             recon_synergynet_model = ReconSynergyNetAblative(args)
             conv_blocks.append(recon_synergynet_model)
-            #dcs.append(DataConsistencyLayer(us_mask))
+            dcs.append(DataConsistencyLayer(us_mask))
 
         self.conv_blocks = nn.ModuleList(conv_blocks)
-        #self.dcs = dcs
+        self.dcs = dcs
 
-    def forward(self,x,k,t1):
+    def forward(self,x,k):
         korig = k
 
         for i in range(self.nc):
 
-            x = self.conv_blocks[i](x,k,t1)
+            x = self.conv_blocks[i](x,k)
             #xcrop=x
 
             #if self.dataset_type=='cardiac':
             #    xcrop = x[:,:,5:x.shape[2]-5,5:x.shape[3]-5]
 
-            #x,k = self.dcs[i](x,korig) 
+            x,k = self.dcs[i](x,korig) 
 
             #if self.dataset_type=='cardiac':
             #    x = F.pad(x,(5,5,5,5),"constant",0)
 
-            #k = k.permute(0,3,1,2)
+            k = k.permute(0,3,1,2)
 
         return x
 
@@ -689,8 +714,7 @@ class DnCnFeature(nn.Module):
         self.conv_blocks = nn.ModuleList(conv_blocks)
         #self.dcs = dcs
 
-    #def forward(self,x,k,thinfeat,us_mask,seg,t1):
-    def forward(self,x,k,thinfeat,seg,t1):
+    def forward(self,x,k,thinfeat,us_mask,seg):
 
         #thinfeat=self.conv1x1(feat)
           
@@ -699,7 +723,7 @@ class DnCnFeature(nn.Module):
         for i in range(self.nc):
 
             #print ("\t In model Befor x1:",x.shape,k.shape)
-            x= self.conv_blocks[i](x,k,thinfeat,seg,t1)
+            x= self.conv_blocks[i](x,k,thinfeat,seg)
             #xcrop = x 
 
             #if self.dataset_type=='cardiac':
@@ -770,7 +794,7 @@ class DnCnFeatureLoop(nn.Module):
         self.conv_blocks = nn.ModuleList(conv_blocks)
         self.dcs = dcs
 
-    def forward(self,x,k,feat,us_mask,seg,t1):
+    def forward(self,x,k,feat,us_mask,seg):
         korig = k 
         thinfeat = self.conv1x1(feat)
         #print (thinfeat.shape)
@@ -780,47 +804,9 @@ class DnCnFeatureLoop(nn.Module):
 
         for i in range(self.nc):
             #print("thinfeat device: ",thinfeat.device)
-            x = self.conv_blocks[i](x,k,thinfeat,seg,t1)
+            x = self.conv_blocks[i](x,k,thinfeat,us_mask,seg)
             x,k = self.dcs[i](x,korig,us_mask) 
             k = k.permute(0,3,1,2)
         return x
 
-class DnCnFeatureLoopAssistOnlyFirstBlock(nn.Module):
-
-    def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
-
-        super(DnCnFeatureLoopAssistOnlyFirstBlock, self).__init__()
-        nc_value = {'cardiac':5,'kirby90':3,'mrbrain_flair':3}
-        self.nc = nc_value[args.dataset_type]
-        self.nd = nd
-
-        print('Creating D{}C{}loop'.format(self.nd, self.nc))
-        conv_blocks = []
-        dcs = []
-        self.conv1x1=Conv1x1feat(512,96)
-        lemawarersnnc1_block = DnCnFeature(args, n_channels,1,5,**kwargs)
-        conv_blocks.append(lemawarersnnc1_block)
-        dcs.append(DataConsistencyLayer())
-
-        for i in range(1,nc):
-            lemawarersnnc1_block = DnCn(args, n_channels,1,5,**kwargs)
-            conv_blocks.append(lemawarersnnc1_block)
-            dcs.append(DataConsistencyLayer())
-
-        self.conv_blocks = nn.ModuleList(conv_blocks)
-        self.dcs = dcs
-
-    def forward(self,x,k,feat,us_mask,seg,t1):
-        korig = k 
-        thinfeat = self.conv1x1(feat)
-        x = self.conv_blocks[0](x,k,thinfeat,seg,t1)
-        x,k = self.dcs[0](x,korig,us_mask) 
-        k = k.permute(0,3,1,2)
- 
-        for i in range(1,self.nc):
-            #print("thinfeat device: ",thinfeat.device)
-            x = self.conv_blocks[i](x,k,t1)
-            x,k = self.dcs[i](x,korig,us_mask) 
-            k = k.permute(0,3,1,2)
-        return x
 

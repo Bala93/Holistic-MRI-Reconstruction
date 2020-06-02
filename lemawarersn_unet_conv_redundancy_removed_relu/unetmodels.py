@@ -113,7 +113,7 @@ class UnetModelAssistEverywhere(nn.Module):
         new_downsample_block = nn.ModuleDict({'conv1':ConvBlock(in_chans,chans,drop_prob),'conv2':ConvBlock2X_to_X(chans+na,chans,drop_prob)})
         self.down_sample_layers = nn.ModuleList([new_downsample_block])
         ch = chans
-        
+
         for i in range(num_pool_layers - 1):
             new_downsample_block = nn.ModuleDict({'conv1':ConvBlock(ch,ch*2,drop_prob),'conv2':ConvBlock2X_to_X((ch*2)+na,ch*2,drop_prob)})
             self.down_sample_layers += nn.ModuleList([new_downsample_block])

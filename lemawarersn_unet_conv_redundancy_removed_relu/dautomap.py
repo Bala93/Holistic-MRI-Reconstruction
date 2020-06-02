@@ -199,7 +199,7 @@ class DARefinementBlockSimple(nn.Module):
         #                     nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(True),
         #                     nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(True),
         #                     nn.Conv2d(64, out_channel, 3, 1, 1))
-        na=96
+        na=96 
         self.conv1 = nn.Sequential(nn.Conv2d(in_channel, 64, 3, 1, 1), nn.ReLU(True))
         self.conv2 = nn.Sequential(nn.Conv2d(64+na, 64, 3, 1, 1), nn.ReLU(True))
         self.conv3 = nn.Sequential(nn.Conv2d(64+na, 64, 3, 1, 1), nn.ReLU(True))

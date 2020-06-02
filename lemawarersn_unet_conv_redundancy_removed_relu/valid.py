@@ -7,7 +7,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from dataset import SliceDataEvaluateDev
-from models import DnCn,UnetModel,DnCnFeature,DnCnFeatureLoop,UnetModelTakeLatentDecoder,UnetModelTakeEverywhereWithIntermediate,DnCnFeatureLoopAssistOnlyFirstBlock
+from models import DnCn,UnetModel,DnCnFeature,DnCnFeatureLoop,UnetModelTakeLatentDecoder,UnetModelTakeEverywhereWithIntermediate
 import h5py
 from tqdm import tqdm
 import torch.nn as nn
@@ -73,7 +73,7 @@ def load_segmodel(args):
    
     checkpoint = torch.load(args.unet_model_path)
     model.load_state_dict(checkpoint['model'])
-    model = nn.DataParallel(model).to(args.device)
+    #model = nn.DataParallel(model).to(args.device)
     return model
 
 def load_recmodel(args):
@@ -93,8 +93,7 @@ def load_model(checkpoint_file):
     #print(model)
     #model = UnetModel(1, 1, args.num_chans, args.num_pools, args.drop_prob).to(args.device)
     #model = DnCnFeature(args,n_channels=1).to(args.device)
-    #model = DnCnFeatureLoop(args,n_channels=1).to(args.device)
-    model = DnCnFeatureLoopAssistOnlyFirstBlock(args,n_channels=1).to(args.device)
+    model = DnCnFeatureLoop(args,n_channels=1).to(args.device)
     #model = torch.nn.DataParallel(model).to(args.device)
     #if args.data_parallel:
     model.load_state_dict(checkpoint['model'])
@@ -115,9 +114,8 @@ def run_unet(args, segmodel, model, data_loader):
     with torch.no_grad():
         for (iter,data) in enumerate(tqdm(data_loader)):
 
-            input, input_kspace, target,predictedimg, fnames,slices,t1imgfs = data
+            input, input_kspace, target,predictedimg, fnames,slices = data
             input = input.unsqueeze(1).to(args.device)
-            t1imgfs = t1imgfs.unsqueeze(1).float().to(args.device)
             input_kspace = input_kspace.permute(0,3,1,2).to(args.device)
             #input_kspace = input_kspace.unsqueeze(1).to(args.device)
 
@@ -137,7 +135,7 @@ def run_unet(args, segmodel, model, data_loader):
             if args.dataset_type == 'cardiac':
                 feat = feat[:,:,5:155,5:155]
 
-            recons = model(input, input_kspace,feat,us_mask1,seg,t1imgfs).to('cpu').squeeze(1)
+            recons = model(input, input_kspace,feat,us_mask1,seg).to('cpu').squeeze(1)
 
             #if args.dataset_type == 'cardiac':
             #    recons = recons[:,5:155,5:155]
