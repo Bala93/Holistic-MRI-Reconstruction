@@ -109,7 +109,7 @@ class UnetModelAssistEverywhere(nn.Module):
         self.drop_prob = drop_prob
         #self.conv1x1=nn.Conv2d(1984,32,kernel_size=1)
         #self.conv1x1=nn.Conv2d(992,32,kernel_size=1)
-        na=32
+        na=96
         new_downsample_block = nn.ModuleDict({'conv1':ConvBlock(in_chans,chans,drop_prob),'conv2':ConvBlock2X_to_X(chans+na,chans,drop_prob)})
         self.down_sample_layers = nn.ModuleList([new_downsample_block])
         ch = chans

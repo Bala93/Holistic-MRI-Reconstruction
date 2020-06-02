@@ -93,8 +93,8 @@ def load_model(checkpoint_file):
     #print(model)
     #model = UnetModel(1, 1, args.num_chans, args.num_pools, args.drop_prob).to(args.device)
     #model = DnCnFeature(args,n_channels=1).to(args.device)
-    model = DnCnFeatureLoop(args,n_channels=1).to(args.device)
-    #model = DnCnFeatureLoopAssistOnlyFirstBlock(args,n_channels=1).to(args.device)
+    #model = DnCnFeatureLoop(args,n_channels=1).to(args.device)
+    model = DnCnFeatureLoopAssistOnlyFirstBlock(args,n_channels=1).to(args.device)
     #model = torch.nn.DataParallel(model).to(args.device)
     #if args.data_parallel:
     model.load_state_dict(checkpoint['model'])

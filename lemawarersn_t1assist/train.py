@@ -320,7 +320,7 @@ def build_recmodel(args):
 def build_model(args):
     
     model = DnCnFeatureLoop(args,n_channels=1)
-    #model = DnCnFeatureLoopAssistOnlyFirstBlockTrial(args,n_channels=1)
+    #model = DnCnFeatureLoopAssistOnlyFirstBlock(args,n_channels=1)
     #model = nn.DataParallel(model)
     model = model.to(args.device)
 

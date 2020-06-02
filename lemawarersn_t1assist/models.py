@@ -492,7 +492,7 @@ class ReconSynergyNetAblative(nn.Module):
 
         dautomap_model = dAUTOMAP(model_params['input_shape'],model_params['output_shape'],model_params['tfx_params'])
         unet_model = FastMRIUnetModel(1,1,32,4,0)
-        srcnnlike_model = conv_block(n_ch=4,nd=5,n_out=1)
+        srcnnlike_model = conv_block(n_ch=3,nd=5,n_out=1)
 
 
         self.KI_layer = dautomap_model        
@@ -515,7 +515,8 @@ class ReconSynergyNetAblative(nn.Module):
             x = x[:,:,5:155,5:155]
 
         # converted to three channels as it is better to provide the undersampled image to refinement layer also.
-        pred_cat = torch.cat([unet_pred,dautomap_pred,x,t1],dim=1)
+        #pred_cat = torch.cat([unet_pred,dautomap_pred,x,t1],dim=1)
+        pred_cat = torch.cat([unet_pred,dautomap_pred,x],dim=1)
         recons = self.Re_layer(pred_cat)
         
         return recons
@@ -756,7 +757,7 @@ class DnCnFeatureLoop(nn.Module):
 
         #self.conv1x1=Conv1x1feat(992,32)
         #self.conv1x1=Conv1x1feat(480,32)
-        self.conv1x1=Conv1x1feat(512,32)
+        self.conv1x1=Conv1x1feat(512,96)
         #self.conv1x1=Conv1x1feat(1984,32)
         print ("latest ############: ")#,lemawarersnnc1_checkpoint['model'].keys())
         for i in range(nc):
@@ -783,7 +784,7 @@ class DnCnFeatureLoop(nn.Module):
             x,k = self.dcs[i](x,korig,us_mask) 
             k = k.permute(0,3,1,2)
         return x
-'''
+
 class DnCnFeatureLoopAssistOnlyFirstBlock(nn.Module):
 
     def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
@@ -822,45 +823,4 @@ class DnCnFeatureLoopAssistOnlyFirstBlock(nn.Module):
             x,k = self.dcs[i](x,korig,us_mask) 
             k = k.permute(0,3,1,2)
         return x
-
-class DnCnFeatureLoopAssistOnlyFirstBlockTrial(nn.Module):
-
-    def __init__(self,args,n_channels=2, nc=5, nd=5,**kwargs):
-
-        super(DnCnFeatureLoopAssistOnlyFirstBlockTrial, self).__init__()
-        nc_value = {'cardiac':5,'kirby90':3,'mrbrain_flair':3}
-        self.nc = nc_value[args.dataset_type]
-        self.nd = nd
-
-        print('Creating D{}C{}loop'.format(self.nd, self.nc))
-        conv_blocks = []
-        dcs = []
-        self.conv1x1=Conv1x1feat(512,32)
-        lemawarersnnc1_block = DnCnFeature(args, n_channels,1,5,**kwargs)
-        conv_blocks.append(lemawarersnnc1_block)
-        dcs.append(DataConsistencyLayer())
-
-        for i in range(1,nc):
-            lemawarersnnc1_block = DnCn(args, n_channels,1,5,**kwargs)
-            conv_blocks.append(lemawarersnnc1_block)
-            dcs.append(DataConsistencyLayer())
-
-        self.conv_blocks = nn.ModuleList(conv_blocks)
-        self.dcs = dcs
-
-    def forward(self,x,k,feat,us_mask,seg,t1):
-        korig = k 
-        thinfeat = self.conv1x1(feat)
-        x = self.conv_blocks[0](x,k,thinfeat,seg,t1)
-        x,k = self.dcs[0](x,korig,us_mask) 
-        k = k.permute(0,3,1,2)
- 
-        for i in range(1,self.nc):
-            #print("thinfeat device: ",thinfeat.device)
-            x = self.conv_blocks[i](x,k,t1)
-            x,k = self.dcs[i](x,korig,us_mask) 
-            k = k.permute(0,3,1,2)
-        return x
-'''
-
 
