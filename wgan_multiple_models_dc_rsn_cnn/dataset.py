@@ -14,13 +14,14 @@ class SliceData(Dataset):
     """
 
     #def __init__(self, root, acc_factor,dataset_type,mask_path): # acc_factor can be passed here and saved as self variable
-    def __init__(self, root, acc_factor):# acc_factor can be passed here and saved as self variable
+    def __init__(self, root, acc_factor, dataset_type):# acc_factor can be passed here and saved as self variable
         # List the h5 files in root 
         files = list(pathlib.Path(root).iterdir())
         self.examples = []
         self.acc_factor = acc_factor 
         self.key_img = 'img_volus_{}x'.format(self.acc_factor)
         self.key_kspace = 'kspace_volus_{}x'.format(self.acc_factor)
+        self.dataset_type = dataset_type
         #mask_path = os.path.join(mask_path,'mask_{}.npy'.format(acc_factor))
         #self.mask = np.load(mask_path)
         #print (files)
@@ -55,9 +56,9 @@ class SliceData(Dataset):
             #uskspace_cmplx = kspace_cmplx * self.mask
             #zf_img = np.abs(np.fft.ifft2(uskspace_cmplx,norm='ortho'))
             
-            #if self.dataset_type == 'cardiac':
+            if self.dataset_type == 'cardiac':
                 # Cardiac dataset should be padded,150 becomes 160. # this can be commented for kirby brain 
-            input_img  = np.pad(input_img,(5,5),'constant',constant_values=(0,0))
+                input_img  = np.pad(input_img,(5,5),'constant',constant_values=(0,0))
             #target = np.pad(target,(5,5),'constant',constant_values=(0,0))
 
             # Print statements
@@ -73,7 +74,7 @@ class SliceDataDev(Dataset):
     """
 
     #def __init__(self, root,acc_factor,dataset_type,mask_path):
-    def __init__(self, root,acc_factor):
+    def __init__(self, root,acc_factor,dataset_type):
 
         # List the h5 files in root 
         files = list(pathlib.Path(root).iterdir())
@@ -82,6 +83,8 @@ class SliceDataDev(Dataset):
         print("self.acc_factor: ", self.acc_factor)
         self.key_img = 'img_volus_{}x'.format(self.acc_factor)
         self.key_kspace = 'kspace_volus_{}x'.format(self.acc_factor)
+
+        self.dataset_type = dataset_type
 
         #mask_path = os.path.join(mask_path,'mask_{}.npy'.format(acc_factor))
         #self.mask = np.load(mask_path)
@@ -115,9 +118,9 @@ class SliceDataDev(Dataset):
             #zf_img = np.abs(np.fft.ifft2(uskspace_cmplx,norm='ortho'))
  
 
-            #if self.dataset_type == 'cardiac':
+            if self.dataset_type == 'cardiac':
                 # Cardiac dataset should be padded,150 becomes 160. # this can be commented for kirby brain 
-            input_img  = np.pad(input_img,(5,5),'constant',constant_values=(0,0))
+                input_img  = np.pad(input_img,(5,5),'constant',constant_values=(0,0))
             #target = np.pad(target,(5,5),'constant',constant_values=(0,0))
 
             # Print statements

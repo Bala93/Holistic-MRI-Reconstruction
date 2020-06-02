@@ -496,7 +496,7 @@ class DnCn(nn.Module):
         self.nc = nc
         self.nd = nd
         self.dataset_type = args.dataset_type
-        us_mask_path = os.path.join('/media/hticpose/drive2/Balamurali/Reconstruction-for-MRI/us_masks/cardiac','mask_{}x.npy'.format(args.acceleration))
+        us_mask_path = os.path.join(args.usmask_path,'mask_{}x.npy'.format(args.acceleration))
         us_mask = torch.from_numpy(np.load(us_mask_path)).unsqueeze(2).unsqueeze(0).to(args.device)
 
         print('Creating D{}C{}'.format(nd, nc))
@@ -533,19 +533,23 @@ class DnCn(nn.Module):
 
 class DnCnRefine(nn.Module):
 
-    def __init__(self,args):
+    def __init__(self,args,nc=3,mode='train'):
 
         super(DnCnRefine, self).__init__()
 
-        us_mask_path = os.path.join('/media/hticpose/drive2/Balamurali/Reconstruction-for-MRI/us_masks/cardiac','mask_{}x.npy'.format(args.acceleration))
+        self.dataset_type = args.dataset_type
+
+        us_mask_path = os.path.join(args.usmask_path,'mask_{}x.npy'.format(args.acceleration))
         us_mask = torch.from_numpy(np.load(us_mask_path)).unsqueeze(2).unsqueeze(0).to(args.device)
         
-        self.dncn = DnCn(args)
-        #ckpt = torch.load('/media/hticpose/drive2/Balamurali/experiments/cardiac/acc_4x/deep_cascade_recon_synergy_net/best_model.pt')['model']
-        #self.dncn.load_state_dict(ckpt)
+        self.dncn = DnCn(args,nc=nc)
+
+        if mode == 'train': 
+            ckpt = torch.load(args.dcrsnpath,map_location='cpu')['model']
+            self.dncn.load_state_dict(ckpt)
         
-        #for param in self.dncn.parameters():
-        #    param.requires_grad = False
+            for param in self.dncn.parameters():
+                param.requires_grad = False
         
         self.refine = conv_block(n_ch=1,nd=5,n_out=1)
         self.dc = DataConsistencyLayer(us_mask)
@@ -554,7 +558,8 @@ class DnCnRefine(nn.Module):
 
         x = self.dncn(x,k)
         x = self.refine(x)
-        x = x[:,:,5:x.shape[2]-5,5:x.shape[3]-5]
+        if self.dataset_type == 'cardiac':
+            x = x[:,:,5:x.shape[2]-5,5:x.shape[3]-5]
         x,_ = self.dc(x,k)
 
         return x

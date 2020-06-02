@@ -19,6 +19,7 @@ from sewar.full_ref import vifp
 from tqdm import tqdm
 import argparse
 from skimage.measure import compare_psnr
+from skimage.measure import compare_ssim
 from architecture import DnCnRefine
 
 logging.basicConfig(level=logging.INFO)
@@ -26,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 def create_datasets(args):
-    train_data = SliceData(args.train_path, args.acceleration)
-    dev_data = SliceDataDev(args.val_path, args.acceleration)
+    train_data = SliceData(args.train_path, args.acceleration, args.dataset_type)
+    dev_data = SliceDataDev(args.val_path, args.acceleration, args.dataset_type)
     return dev_data, train_data
 
 
@@ -138,8 +139,10 @@ def train_epoch(args, epoch, model, netD, data_loader, optimizer, optimizerD, wr
 
 def evaluate(args, epoch, model, data_loader, writer):
     model.eval()
+
     losses_psnr = []
     losses_vif  = []
+    losses_ssim = []
 
     start = time.perf_counter()
     with torch.no_grad():
@@ -161,20 +164,29 @@ def evaluate(args, epoch, model, data_loader, writer):
             #loss = F.mse_loss(output, target, size_average=True)
             #losses_mse.append(loss.item())
 
-            output = output.cpu().numpy()[0,0,:,:]
-            target = target.cpu().numpy()[0,0,:,:]
+            output = output.cpu().numpy()[0,:,:]
+            target = target.cpu().numpy()[0,:,:]
+
+            output = np.transpose(output,[1,2,0])
+            target = np.transpose(target,[1,2,0])
+
+            #print (output.shape, target.shape)
        
             loss = vifp(target, output)
             losses_vif.append(loss)
  
             loss = compare_psnr(target, output, data_range=target.max())
             losses_psnr.append(loss)
+
+            loss = compare_ssim(target, output, multichannel=True)
+            losses_ssim.append(loss)
              
             #break
         writer.add_scalar('Dev_Loss_psnr', np.mean(losses_psnr), epoch)
         writer.add_scalar('Dev_Loss_vif', np.mean(losses_vif), epoch)
+        writer.add_scalar('Dev_Loss_ssim', np.mean(losses_ssim), epoch)
        
-    return np.mean(losses_psnr), np.mean(losses_vif), time.perf_counter() - start
+    return np.mean(losses_psnr), np.mean(losses_ssim), np.mean(losses_vif), time.perf_counter() - start
     #return np.mean(losses_vif), time.perf_counter() - start
 
 
@@ -226,11 +238,11 @@ def save_model(exp_dir, epoch, model):
 
 def build_generator(args):
     #model = UNet(1,1).to(args.device)
-    model = DnCnRefine(args).to(args.device)
+    model = DnCnRefine(args,nc=5,mode='train').to(args.device)
     return model
 
-def build_disc():
-    netD = Discriminator()
+def build_disc(args):
+    netD = Discriminator(args)
     netD.to(args.device)
     optimizerD = optim.SGD(netD.parameters(),lr=5e-3)
     return netD, optimizerD
@@ -248,7 +260,7 @@ def load_model(checkpoint_file):
     optimizer = build_optim(args, model.parameters())
     optimizer.load_state_dict(checkpoint['optimizer'])
 
-    disc, optimizerD = build_disc()
+    disc, optimizerD = build_disc(args)
     if args.data_parallel:
         disc = torch.nn.DataParallel(disc)    
     disc.load_state_dict(checkpoint['disc'])
@@ -276,7 +288,7 @@ def main(args):
 
     else:
         model = build_generator(args)
-        disc, optimizerD = build_disc()
+        disc, optimizerD = build_disc(args)
         if args.data_parallel:
             model = torch.nn.DataParallel(model)
             disc = torch.nn.DataParallel(disc)
@@ -291,7 +303,7 @@ def main(args):
         is_new_best_mse = False
         scheduler.step(epoch)
         train_lossG, train_lossD, train_time = train_epoch(args, epoch, model, disc, train_loader, optimizer, optimizerD, writer)
-        dev_mse, dev_vif, dev_time = evaluate(args, epoch, model, dev_loader, writer)
+        dev_psnr, dev_ssim, dev_vif, dev_time = evaluate(args, epoch, model, dev_loader, writer)
         #if dev_mse < best_dev_mse:
         #    is_new_best_mse = True
         #    best_dev_mse =  dev_mse
@@ -301,7 +313,7 @@ def main(args):
         save_model(args.exp_dir, epoch, model)
         logging.info(
             f'Epoch = [{epoch:4d}/{args.num_epochs:4d}] TrainLossG = {train_lossG:.4g} TrainLossD = {train_lossD:.4g} '
-            f'DevMSE = {dev_mse:.4g} DevVIF = {dev_vif:.4g}   TrainTime = {train_time:.4f}s DevTime = {dev_time:.4f}s',
+            f'DevPSNR = {dev_psnr:.4g} DevSSIM = {dev_ssim:.4g} DevVIF = {dev_vif:.4g}   TrainTime = {train_time:.4f}s DevTime = {dev_time:.4f}s',
         )
     writer.close()
 
@@ -334,7 +346,11 @@ def create_arg_parser():
     parser.add_argument('--checkpoint', type=str,
                         help='Path to an existing checkpoint. Used along with "--resume"')
     parser.add_argument('--seed', default=42, type=int, help='Seed for random number generators')
-    parser.add_argument('--dataset_type',type=str,default='cardiac',help='cardiac,kirby') 
+
+    parser.add_argument('--dataset_type',type=str,help='cardiac,kirby') 
+    parser.add_argument('--usmask_path',type=str,help='us mask path')
+    parser.add_argument('--dcrsnpath',type=str,help='dcrsn path')
+
     return parser
 
 

@@ -121,10 +121,11 @@ class UNet(nn.Module):
 
         
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self,args):
         super(Discriminator,self).__init__()
         #you can make abbreviations for conv and fc, this is not necessary
         #class torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
+        fc1_inp = {'cardiac':12544, 'kirby':50176}
         self.conv1 = nn.Conv2d(1,32,(9,9), 1)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32,64,(5,5))
@@ -132,9 +133,11 @@ class Discriminator(nn.Module):
         self.conv3 = nn.Conv2d(64,64,(5,5))
         self.bn3 = nn.BatchNorm2d(64)
         #self.fc1 = nn.Linear(64*36*36,512)
-        #self.fc1 = nn.Linear(50176,512)
+        
+        #self.fc1 = nn.Linear(50176,512) # kirby
         #self.fc1 = nn.Linear(16384,512)
-        self.fc1 = nn.Linear(12544,512)
+        #self.fc1 = nn.Linear(12544,512) # cardiac
+        self.fc1 = nn.Linear(fc1_inp[args.dataset_type],512) # cardiac
         #self.bn3= nn.BatchNorm1d(6)
         self.fc2 = nn.Linear(512,64)
         self.fc3 = nn.Linear(64,1)        
