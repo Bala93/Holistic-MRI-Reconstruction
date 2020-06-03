@@ -323,7 +323,7 @@ def create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-path', type=str, required=True, help='Path to training data')
     parser.add_argument('--val-path', type=str, required=True, help='Path to validation data')
-    parser.add_argument('--acceleration', type=int, choices=[2, 4, 8], default=4, help='Acceleration factor for undersampled data')
+    parser.add_argument('--acceleration', type=int, help='Acceleration factor for undersampled data')
     parser.add_argument('--batch-size', default=4, type=int,  help='Mini batch size')
     parser.add_argument('--num-epochs', type=int, default=150, help='Number of training epochs')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')

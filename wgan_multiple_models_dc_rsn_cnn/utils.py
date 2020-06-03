@@ -6,6 +6,8 @@ import numpy as np
 
 def save_reconstructions(reconstructions, out_dir):
 
+    out_dir.mkdir(exist_ok=True)
+
     for fname, recons in reconstructions.items():
 
         with h5py.File(str(out_dir) +'/' +str(fname), 'w') as f:
