@@ -387,8 +387,8 @@ class SliceDataEvaluateDev(Dataset):
         self.examples = []
         self.acc_factor = acc_factor 
         self.dataset_type = dataset_type
-        self.key_img = 'img_volus_{}'.format(self.acc_factor)
-        self.key_kspace = 'kspace_volus_{}'.format(self.acc_factor)
+        self.key_img = 'img_volus_{}x'.format(self.acc_factor)
+        self.key_kspace = 'kspace_volus_{}x'.format(self.acc_factor)
         self.reconspath = os.path.join(predimgpath,'results')
         #mask_path = os.path.join(mask_path,'mask_{}.npy'.format(acc_factor))
         #self.mask = np.load(mask_path)
