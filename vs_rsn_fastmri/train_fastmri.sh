@@ -9,5 +9,5 @@ TRAIN_CSV_PATH='/media/htic/NewVolume3/Balamurali/fastmri/multicoil_train.csv'
 VALIDATION_CSV_PATH='/media/htic/NewVolume3/Balamurali/fastmri/multicoil_valid.csv'
 CHALLENGE='multicoil'
 
-python train.py --batch-size ${BATCH_SIZE} --num-epochs ${NUM_EPOCHS} --device ${DEVICE} --exp-dir ${EXP_DIR} --train-path ${TRAIN_PATH} --validation-path ${VALIDATION_PATH} --train-csv-path ${TRAIN_CSV_PATH} --valid-csv-path ${VALIDATION_CSV_PATH} --challenge ${CHALLENGE} --report-interval 1 --data-parallel
+python train.py --batch-size ${BATCH_SIZE} --num-epochs ${NUM_EPOCHS} --device ${DEVICE} --exp-dir ${EXP_DIR} --train-path ${TRAIN_PATH} --validation-path ${VALIDATION_PATH} --train-csv-path ${TRAIN_CSV_PATH} --valid-csv-path ${VALIDATION_CSV_PATH} --challenge ${CHALLENGE} --sample-rate 0.1
 

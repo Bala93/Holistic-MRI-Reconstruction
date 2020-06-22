@@ -110,7 +110,8 @@ class DataTransform:
             target_sense_rss = torch.Tensor([0])
             target_rss = torch.Tensor([0])
  
-        return masked_image_norm_reduce_crop, masked_kspace_norm_reduce_crop, masked_image_norm_reduce, sensitivity, mask, masked_kspace_norm, target_sense_rss, target_rss, masked_image_rss_max
+        #return masked_image_norm_reduce_crop, masked_kspace_norm_reduce_crop, masked_image_norm_reduce, sensitivity, mask, masked_kspace_norm, target_sense_rss, target_rss, masked_image_rss_max
+        return masked_image_norm_reduce_crop, masked_kspace_norm_reduce_crop, masked_image_norm_reduce, sensitivity, mask, masked_kspace_norm, image_norm_reduce, target_rss, masked_image_rss_max
 
 
 def create_datasets(args):
@@ -192,10 +193,11 @@ def train_epoch(args, epoch, model,data_loader, optimizer, writer):
         output_expand = T.complex_mul(output, sensitivity)
         output_expand_rss = T.root_sum_of_squares(T.complex_abs(T.complex_center_crop(output_expand,(320,320))),dim=1)
 
-        print (torch.sum(output), torch.sum(output_expand), torch.sum(output_expand_rss), torch.sum(img_gt))
+        #print (torch.sum(output), torch.sum(output_expand), torch.sum(output_expand_rss), torch.sum(img_gt))
         #print (output.shape, output_expand.shape, output_expand_rss.shape,img_gt.shape)
 
-        loss = F.mse_loss(output_expand_rss, img_gt)
+        #loss = F.mse_loss(output_expand_rss, img_gt)
+        loss = F.mse_loss(output, img_gt)
 
         optimizer.zero_grad()
         loss.backward()
@@ -250,15 +252,15 @@ def evaluate(args, epoch, model, data_loader, writer):
             output_expand = T.complex_mul(output, sensitivity)
             output_expand_rss = T.root_sum_of_squares(T.complex_abs(T.complex_center_crop(output_expand,(320,320))),dim=1)
 
-            print (torch.sum(output_expand_rss), torch.sum(img_gt))
+            #print (torch.sum(output_expand_rss), torch.sum(img_gt))
 
-            loss_sense  = F.mse_loss(output_expand_rss, img_gt)
+            loss_sense  = F.mse_loss(output, img_gt)
             loss_target = F.mse_loss(output_expand_rss, target)
-            print (loss_sense, loss_target)
+            #print (loss_sense, loss_target)
     
             losses_sense.append(loss_sense.item())
             losses_target.append(loss_target.item())
-            break
+            #break
             
         writer.add_scalar('Dev_Loss_sense',np.mean(losses_sense),epoch)
         writer.add_scalar('Dev_Loss_target',np.mean(losses_target),epoch)
@@ -285,6 +287,7 @@ def visualize(args, epoch, model, data_loader, writer):
             #print (img_und_crop.shape, img_und_kspace.shape, img_und.shape, sensitivity.shape, masks.shape, rawdata_und.shape, img_gt.shape)
     
             img_gt  = img_gt.to(args.device)
+            target = target.to(args.device)
             rawdata_und = rawdata_und.to(args.device)
             masks = masks.to(args.device)
     
@@ -300,9 +303,9 @@ def visualize(args, epoch, model, data_loader, writer):
 
             #print (img_gt.shape, output_expand_rss.shape)
 
-            save_image(img_gt, 'Target')
+            save_image(target, 'Target')
             save_image(output_expand_rss, 'Reconstruction')
-            save_image(torch.abs(output_expand_rss - img_gt), 'Error')
+            save_image(torch.abs(output_expand_rss - target), 'Error')
 
             break
 

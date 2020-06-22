@@ -50,7 +50,7 @@ class SliceData(Dataset):
 
         if sample_rate < 1:
 
-            #random.shuffle(self.examples)
+            random.shuffle(self.examples)
             num_files = round(len(self.examples) * sample_rate)
             self.examples= self.examples[:num_files]
 
@@ -74,13 +74,12 @@ class SliceData(Dataset):
 
         return self.transform(kspace, sensitivity, target, mask, data_fname, sensitivity_fname)
 
-
 class SliceDataDev(Dataset):
     """
     A PyTorch Dataset that provides access to MR image slices.
     """
 
-    def __init__(self, root, transform, challenge='singlecoil', sample_rate=1):
+    def __init__(self,root, csv_path, transform, challenge='singlecoil', sample_rate=1):
         """
         Args:
             root (pathlib.Path): Path to the dataset.
@@ -95,35 +94,47 @@ class SliceDataDev(Dataset):
         if challenge not in ('singlecoil', 'multicoil'):
             raise ValueError('challenge should be either "singlecoil" or "multicoil"')
 
+        print (challenge)
+        self.recons_key = 'reconstruction_esc' if challenge == 'singlecoil' else 'reconstruction_rss'
+
+        self.dataset_dir = os.path.join(root, 'dataset')
+        self.sensitivity_dir = os.path.join(root, 'sensitivity')
+
         self.transform = transform
-        self.recons_key = 'reconstruction_esc' if challenge == 'singlecoil' \
-            else 'reconstruction_rss'
 
         self.examples = []
 
         df = pd.read_csv(csv_path)
-        files = df['fname']
-        slices = df['slice']
+
+        files = df['filename']
+        slices = df['sliceno']
 
         print ("Preparing data")
 
         for fname, slice in zip(files, slices):
-            self.examples += [(fname, slice, 0, 0)]
 
-        print ("Validation preparation done")
+            self.examples += [(fname,slice)] 
 
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, i):
-        fname, slice, padding_left, padding_right = self.examples[i]
-        with h5py.File(fname, 'r') as data:
-            kspace = data['kspace'][slice]
-            mask = np.asarray(data['mask']) if 'mask' in data else None
+
+        fname,slice =  self.examples[i]
+
+        data_path = os.path.join(self.dataset_dir, fname, slice)
+        sensitivity_path = os.path.join(self.sensitivity_dir, fname, slice)
+
+        with h5py.File(data_path, 'r') as data:
+
+            kspace = data['kspace'].value
             target = data[self.recons_key][slice] if self.recons_key in data else None
-            attrs = dict(data.attrs)
-            attrs['padding_left'] = padding_left
-            attrs['padding_right'] = padding_right
-            return self.transform(kspace, mask, target, attrs, fname, slice)
+            mask = np.asarray(data['mask']) if 'mask' in data else None # train, valid will return None
+
+        with h5py.File(sensitivity_path, 'r') as data:
+
+            sensitivity = data['sensitivity'].value
+
+        return self.transform(kspace, sensitivity, mask, fname, slice)
 
 
