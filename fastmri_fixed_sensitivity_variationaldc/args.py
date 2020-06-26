@@ -28,7 +28,10 @@ class Args(argparse.ArgumentParser):
 
         # Data parameters
         self.add_argument('--challenge', choices=['singlecoil', 'multicoil'], help='Which challenge')
-        self.add_argument('--data-path', type=pathlib.Path, help='Path to the dataset')
+        self.add_argument('--train-path', type=pathlib.Path, help='Path to the dataset')
+        self.add_argument('--validation-path', type=pathlib.Path, help='Path to the dataset')
+        self.add_argument('--train-csv-path', type=pathlib.Path, help='Path to the dataset')
+        self.add_argument('--validation-csv-path', type=pathlib.Path, help='Path to the dataset')
         self.add_argument('--sample-rate', type=float, default=1.,
                           help='Fraction of total volumes to include')
 

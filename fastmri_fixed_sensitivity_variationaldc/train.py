@@ -21,6 +21,8 @@ from torch import optim
 from tqdm import tqdm
 from subsample import create_mask_for_mask_type
 import transforms as T
+from losses import SSIM
+from args import Args
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,7 +46,7 @@ class DataTransform:
         self.resolution = resolution
         self.use_seed = use_seed
 
-    def __call__(self, kspace, mask, target, attrs, fname, slice):
+    def __call__(self, kspace, mask, target, attrs, fname):
         """
         Args:
             kspace (numpy.array): Input k-space of shape (num_coils, rows, cols, 2) for multi-coil
@@ -85,7 +87,9 @@ class DataTransform:
             mask = torch.from_numpy(mask.reshape(*mask_shape).astype(np.float32))
             mask[:,:,:acq_start] = 0
             mask[:,:,acq_end:] = 0
-        return masked_kspace, mask.byte(), target, fname, slice, max_value
+        #print (fname, max_value)
+
+        return masked_kspace, mask.byte(), target, fname, max_value
 
 
 def create_datasets(args):
@@ -95,12 +99,14 @@ def create_datasets(args):
 
     train_data = SliceData(
         root=args.train_path,
+        root_csv=args.train_csv_path,
         transform=transform,
         sample_rate=args.sample_rate,
         challenge=args.challenge)
 
     dev_data = SliceData(
-        root = args.validation_path,
+        root=args.validation_path,
+        root_csv=args.validation_csv_path,
         transform=transform,
         sample_rate=args.sample_rate,
         challenge=args.challenge)
@@ -111,6 +117,7 @@ def create_datasets(args):
 def create_data_loaders(args):
 
     dev_data, train_data = create_datasets(args)   
+    print (len(train_data), len(dev_data))
 
     display_data = [dev_data[i] for i in range(0, len(dev_data), len(dev_data) // 16 )]
 
@@ -133,10 +140,11 @@ def create_data_loaders(args):
         #num_workers=64,
         #pin_memory=True,
     )
+
     return train_loader, dev_loader, display_loader
 
 
-def train_epoch(args, epoch, model, data_loader, optimizer, writer):
+def train_epoch(args, epoch, model, data_loader, ssim_loss, optimizer, writer):
     
     model.train()
     avg_loss = 0.
@@ -146,16 +154,23 @@ def train_epoch(args, epoch, model, data_loader, optimizer, writer):
 
     for iter, data in enumerate(tqdm(data_loader)):
 
-        masked_kspace, mask, target, fname, _, max_value = data
+        masked_kspace, mask, target, fname, max_value = data
+
+        #print (masked_kspace.shape, mask.shape, target.shape)
 
         masked_kspace = masked_kspace.to(args.device)
         mask = mask.to(args.device)
         target = target.to(args.device)
+        max_value = max_value.to(args.device)
 
         output = model(masked_kspace, mask)
+
+        #print (output.shape)
+        #print (target.shape)
+
         target, output = T.center_crop_to_smallest(target, output)
 
-        loss = F.mse_loss(output, target)
+        loss = ssim_loss(output.unsqueeze(1), target.unsqueeze(1), data_range=max_value)
 
         optimizer.zero_grad()
         loss.backward()
@@ -179,51 +194,37 @@ def train_epoch(args, epoch, model, data_loader, optimizer, writer):
     return avg_loss, time.perf_counter() - start_epoch
 
 
-def evaluate(args, epoch, model, data_loader, writer):
+def evaluate(args, epoch, model, data_loader, ssim_loss, writer):
 
     model.eval()
 
-    losses_sense = []
-    losses_target = []
+    losses = []
 
     start = time.perf_counter()
     
     with torch.no_grad():
         for iter, data in enumerate(tqdm(data_loader)):
 
-            img_und_crop, img_und_kspace, img_und, sensitivity, masks, rawdata_und, img_gt, target, _ = data
-    
-            #print (img_und_crop.shape, img_und_kspace.shape, img_und.shape, sensitivity.shape, masks.shape, rawdata_und.shape, img_gt.shape)
-    
-            img_gt  = img_gt.to(args.device)
-            rawdata_und = rawdata_und.to(args.device)
-            masks = masks.to(args.device)
-    
-            img_und_crop = img_und_crop.to(args.device)
-            img_und = img_und.to(args.device)
-            img_und_kspace = img_und_kspace.to(args.device)
-            sensitivity = sensitivity.to(args.device)
+            masked_kspace, mask, target, fname, max_value = data
+
+            #print (masked_kspace.shape, mask.shape, target.shape)
+            masked_kspace = masked_kspace.to(args.device)
+            mask = mask.to(args.device)
             target = target.to(args.device)
-            
-            output = model(img_und_crop, img_und_kspace, img_und, rawdata_und,masks,sensitivity,(320,320))
-           
-            output_expand = T.complex_mul(output, sensitivity)
-            output_expand_rss = T.root_sum_of_squares(T.complex_abs(T.complex_center_crop(output_expand,(320,320))),dim=1)
+            max_value = max_value.to(args.device)
 
-            #print (torch.sum(output_expand_rss), torch.sum(img_gt))
-
-            loss_sense  = F.mse_loss(output, img_gt)
-            loss_target = F.mse_loss(output_expand_rss, target)
-            #print (loss_sense, loss_target)
+            output = model(masked_kspace, mask)
+            #print (output.shape)
+            target, output = T.center_crop_to_smallest(target, output)
+            #print (target.shape)
+            loss = ssim_loss(output.unsqueeze(1), target.unsqueeze(1), data_range=max_value)
     
-            losses_sense.append(loss_sense.item())
-            losses_target.append(loss_target.item())
+            losses.append(loss.item())
             #break
             
-        writer.add_scalar('Dev_Loss_sense',np.mean(losses_sense),epoch)
-        writer.add_scalar('Dev_Loss_target',np.mean(losses_target),epoch)
+        writer.add_scalar('Dev_Loss',np.mean(losses),epoch)
        
-    return np.mean(losses_sense), time.perf_counter() - start
+    return np.mean(losses), time.perf_counter() - start
 
 
 def visualize(args, epoch, model, data_loader, writer):
@@ -238,32 +239,22 @@ def visualize(args, epoch, model, data_loader, writer):
     with torch.no_grad():
         for iter, data in enumerate(tqdm(data_loader)):
 
-            #print (img_und_abs.shape,img_gt_abs.shape,output_abs.shape)
-
-            img_und_crop, img_und_kspace, img_und, sensitivity, masks, rawdata_und, img_gt, target, _ = data
-    
-            #print (img_und_crop.shape, img_und_kspace.shape, img_und.shape, sensitivity.shape, masks.shape, rawdata_und.shape, img_gt.shape)
-    
-            img_gt  = img_gt.to(args.device)
+            masked_kspace, mask, target, fname, max_value = data
+            masked_kspace = masked_kspace.to(args.device)
+            mask = mask.to(args.device)
             target = target.to(args.device)
-            rawdata_und = rawdata_und.to(args.device)
-            masks = masks.to(args.device)
-    
-            img_und_crop = img_und_crop.to(args.device)
-            img_und = img_und.to(args.device)
-            img_und_kspace = img_und_kspace.to(args.device)
-            sensitivity = sensitivity.to(args.device)
-            
-            output = model(img_und_crop, img_und_kspace, img_und, rawdata_und,masks,sensitivity,(320,320))
-           
-            output_expand = T.complex_mul(output, sensitivity)
-            output_expand_rss = T.root_sum_of_squares(T.complex_abs(T.complex_center_crop(output_expand,(320,320))),dim=1)
 
-            #print (img_gt.shape, output_expand_rss.shape)
+            output = model(masked_kspace, mask)
+            target, output = T.center_crop_to_smallest(target, output)
 
+            masked_image = T.ifft2(masked_kspace)
+            masked_image_rss = T.root_sum_of_squares_complex(masked_image, dim=1)
+            #print (masked_image_rss.shape, target.shape, output.shape)
+ 
+            save_image(masked_image_rss, 'Input')
             save_image(target, 'Target')
-            save_image(output_expand_rss, 'Reconstruction')
-            save_image(torch.abs(output_expand_rss - target), 'Error')
+            save_image(output, 'Reconstruction')
+            save_image(torch.abs(output - target), 'Error')
 
             break
 
@@ -308,8 +299,8 @@ def main(args):
 
     model = build_model(args)
 
-    if args.data_parallel:
-        model = torch.nn.DataParallel(model)    
+    #if args.data_parallel:
+    #    model = torch.nn.DataParallel(model)    
 
     optimizer = build_optim(args, model.parameters())
     print ("Optmizer initialized")
@@ -321,12 +312,14 @@ def main(args):
 
     train_loader, dev_loader, display_loader = create_data_loaders(args)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_step_size, args.lr_gamma)
+
+    ssim_loss = SSIM().to(args.device)
     
     for epoch in range(start_epoch, args.num_epochs):
 
         scheduler.step(epoch)
-        train_loss,train_time = train_epoch(args, epoch, model, train_loader,optimizer,writer)
-        dev_loss,dev_time = evaluate(args, epoch, model, dev_loader, writer)
+        train_loss,train_time = train_epoch(args, epoch, model, train_loader, ssim_loss, optimizer, writer)
+        dev_loss,dev_time = evaluate(args, epoch, model, dev_loader, ssim_loss, writer)
         visualize(args, epoch, model, display_loader, writer)
 
         is_new_best = dev_loss < best_dev_loss
@@ -347,7 +340,6 @@ def create_arg_parser():
     parser.add_argument('--device', type=str, default='cuda:0')
     parser.add_argument('--exp-dir', type=pathlib.Path, default='experiments',
                         help='Path where model and results should be saved')
-    parser.add_argument('--exp', type=str, help='Name of the experiment')
     parser.add_argument('--checkpoint', type=pathlib.Path,
                         help='Path to pre-trained model. Use with --mode test')
     parser.add_argument('--num-cascades', type=int, default=5, help='Number of U-Net cascades')
@@ -365,6 +357,7 @@ def create_arg_parser():
     parser.add_argument('--weight-decay', type=float, default=0.,
                         help='Strength of weight decay regularization')
 
+    parser.add_argument('--report-interval', type=int, default=500, help='Period of loss reporting')
     return parser
 
 

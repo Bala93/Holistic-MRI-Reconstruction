@@ -46,7 +46,7 @@ class SensitivityModel(nn.Module):
 
 class VarNetBlock(nn.Module):
     def __init__(self, model):
-        super(VarNetBlock, self).__init__()
+        super().__init__()
         self.model = model
         self.dc_weight = nn.Parameter(torch.ones(1))
         self.register_buffer('zero', torch.zeros(1, 1, 1, 1, 1))
@@ -70,7 +70,7 @@ class VarNetBlock(nn.Module):
 class VariationalNetworkModel(nn.Module):
     
     def __init__(self, hparams):
-        super().__init__(hparams)
+        super().__init__()
         self.sens_net = SensitivityModel(hparams.sens_chans, hparams.sens_pools)
         self.cascades = nn.ModuleList([
             VarNetBlock(NormUnet(hparams.chans, hparams.pools))

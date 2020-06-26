@@ -11,6 +11,7 @@ import random
 import numpy as np
 import h5py
 from torch.utils.data import Dataset
+import pandas as pd
 
 
 class SliceData(Dataset):
@@ -18,7 +19,7 @@ class SliceData(Dataset):
     A PyTorch Dataset that provides access to MR image slices.
     """
 
-    def __init__(self, root, transform, challenge, sample_rate=1):
+    def __init__(self, root, root_csv, transform, challenge, sample_rate=1):
         """
         Args:
             root (pathlib.Path): Path to the dataset.
@@ -37,12 +38,29 @@ class SliceData(Dataset):
         self.recons_key = 'reconstruction_esc' if challenge == 'singlecoil' \
             else 'reconstruction_rss'
 
-        self.examples = []
-        files = list(pathlib.Path(root).iterdir())
+
+        df  = pd.read_csv(root_csv)
+
+        fnames = df['filename']
+        slices = df['sliceno']
+
+        files = []
+
+        for fname, slice in zip(fnames, slices):
+
+            files += [root / '{}'.format(fname) / '{}'.format(slice)] 
+
+        #files = list(pathlib.Path(root).iterdir())
         if sample_rate < 1:
             random.shuffle(files)
             num_files = round(len(files) * sample_rate)
             files = files[:num_files]
+
+        self.examples = files
+
+        #print (len(self.examples))
+
+        '''
         for fname in sorted(files):
             data = h5py.File(fname, 'r')
 
@@ -68,17 +86,23 @@ class SliceData(Dataset):
             kspace = data['kspace']
             num_slices = kspace.shape[0]
             self.examples += [(fname, slice, padding_left, padding_right) for slice in range(num_slices)]
+        '''
 
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, i):
-        fname, slice, padding_left, padding_right = self.examples[i]
+        #fname, slice, padding_left, padding_right = self.examples[i]
+        fname = self.examples[i]
         with h5py.File(fname, 'r') as data:
-            kspace = data['kspace'][slice]
-            mask = np.asarray(data['mask']) if 'mask' in data else None
-            target = data[self.recons_key][slice] if self.recons_key in data else None
+            #kspace = data['kspace'][slice]
+            kspace = data['kspace'].value
+            mask = np.asarray(data['mask'].value) if 'mask' in data else None
+            target = data[self.recons_key].value if self.recons_key in data else None
             attrs = dict(data.attrs)
-            attrs['padding_left'] = padding_left
-            attrs['padding_right'] = padding_right
-            return self.transform(kspace, mask, target, attrs, fname.name, slice)
+            attrs['max'] = target.max()
+            #attrs['padding_left'] = padding_left
+            attrs['padding_left'] = 0
+            #attrs['padding_right'] = padding_right
+            attrs['padding_right'] = kspace.shape[-1]
+            return self.transform(kspace, mask, target, attrs, str(fname))
