@@ -100,7 +100,7 @@ class SliceData(Dataset):
             mask = np.asarray(data['mask'].value) if 'mask' in data else None
             target = data[self.recons_key].value if self.recons_key in data else None
             attrs = dict(data.attrs)
-            attrs['max'] = target.max()
+            attrs['max'] = target.max() if self.recons_key in data else None
             #attrs['padding_left'] = padding_left
             attrs['padding_left'] = 0
             #attrs['padding_right'] = padding_right
